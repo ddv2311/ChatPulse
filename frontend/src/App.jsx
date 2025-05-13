@@ -7,15 +7,26 @@ import LoginPage from './pages/LoginPage'
 import SettingsPage from './pages/SettingsPage'
 import ProfilePage from './pages/ProfilePage'
 import { useAuthStore } from './store/useAuthStore'
+import { useThemeStore } from './store/useThemeStore'
 import { useEffect } from 'react'
 import { Loader } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+
 const App = () => {
   const {authUser,checkAuth,isCheckingAuth} = useAuthStore();
+  const {theme} = useThemeStore();
+  
   useEffect(() => {
     checkAuth();
   },[checkAuth]);
+  
+  // Apply theme to document element
+  useEffect(() => {
+    // Apply theme to html element
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+  
   console.log(authUser);
   
   if(isCheckingAuth && !authUser){
@@ -25,11 +36,9 @@ const App = () => {
       </div>
     )
   }
-
-  
   
   return (
-  <div>
+  <div className="min-h-screen">
   <Navbar />
   <Routes>
     <Route path="/" element={authUser ?<HomePage/>:<Navigate to="/login"/>}/>
@@ -38,8 +47,9 @@ const App = () => {
     <Route path="/settings" element={<SettingsPage/>}/>
     <Route path="/profile" element={authUser ?<ProfilePage/>:<Navigate to="/login"/>}/>
   </Routes>
-  <Toaster/>
+  <Toaster position="top-center" />
   </div>
-);
+  );
 }
+
 export default App;

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="cupcake">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Theme Test</title>
+  <link rel="stylesheet" href="/src/index.css">
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      padding: 2rem;
+    }
+    .theme-changer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+    }
+    .theme-btn {
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      background-color: hsl(var(--b2));
+      border: 1px solid hsl(var(--b3));
+    }
+    .theme-btn.active {
+      background-color: hsl(var(--p));
+      color: hsl(var(--pc));
+    }
+    .components {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1 class="text-2xl font-bold mb-4">DaisyUI Theme Test</h1>
+  
+  <div class="theme-changer" id="themeChanger">
+    <!-- Theme buttons will be inserted here -->
+  </div>
+  
+  <div class="components">
+    <div class="bg-base-100 p-4 rounded-lg shadow">
+      <h2 class="text-xl mb-2">Base Colors</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div class="p-4 bg-base-100 border border-base-300">base-100</div>
+        <div class="p-4 bg-base-200 border border-base-300">base-200</div>
+        <div class="p-4 bg-base-300 border border-base-300">base-300</div>
+        <div class="p-4 bg-neutral text-neutral-content">neutral</div>
+      </div>
+    </div>
+    
+    <div class="bg-base-100 p-4 rounded-lg shadow">
+      <h2 class="text-xl mb-2">Accent Colors</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div class="p-4 bg-primary text-primary-content">primary</div>
+        <div class="p-4 bg-secondary text-secondary-content">secondary</div>
+        <div class="p-4 bg-accent text-accent-content">accent</div>
+        <div class="p-4 bg-info text-info-content">info</div>
+        <div class="p-4 bg-success text-success-content">success</div>
+        <div class="p-4 bg-warning text-warning-content">warning</div>
+        <div class="p-4 bg-error text-error-content">error</div>
+      </div>
+    </div>
+    
+    <div class="bg-base-100 p-4 rounded-lg shadow">
+      <h2 class="text-xl mb-2">Components</h2>
+      <div class="flex flex-wrap gap-2">
+        <button class="btn">Button</button>
+        <button class="btn btn-primary">Primary</button>
+        <button class="btn btn-secondary">Secondary</button>
+        <button class="btn btn-accent">Accent</button>
+        <button class="btn btn-outline">Outline</button>
+        <input type="text" placeholder="Input" class="input input-bordered w-full max-w-xs" />
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const themes = [
+      "light", "dark", "cupcake", "bumblebee", "emerald", "corporate", "synthwave",
+      "retro", "cyberpunk", "valentine", "halloween", "garden", "forest", "aqua",
+      "lofi", "pastel", "fantasy", "wireframe", "black", "luxury", "dracula",
+      "cmyk", "autumn", "business", "acid", "lemonade", "night", "coffee",
+      "winter", "dim", "nord", "sunset"
+    ];
+    
+    const themeChanger = document.getElementById('themeChanger');
+    const htmlElement = document.documentElement;
+    const currentTheme = htmlElement.getAttribute('data-theme');
+    
+    themes.forEach(theme => {
+      const btn = document.createElement('button');
+      btn.className = `theme-btn ${theme === currentTheme ? 'active' : ''}`;
+      btn.textContent = theme;
+      btn.onclick = () => {
+        document.documentElement.setAttribute('data-theme', theme);
+        document.querySelectorAll('.theme-btn').forEach(el => {
+          el.classList.remove('active');
+        });
+        btn.classList.add('active');
+      };
+      themeChanger.appendChild(btn);
+    });
+  </script>
+</body>
+</html> 
