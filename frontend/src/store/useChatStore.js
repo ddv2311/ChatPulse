@@ -47,14 +47,38 @@ export const useChatStore = create((set, get) => ({
     const { selectedUser } = get();
     if (!selectedUser) return;
     
-    // Skip socket operations for now - will be implemented later
-    // This prevents the error without breaking functionality
-    console.log("Socket functionality not yet implemented");
+    const socket = useAuthStore.getState().socket;
+    if (!socket) return;
+    
+    // First, unsubscribe from any existing listeners to prevent duplicates
+    socket.off("newMessage");
+    
+    // Then add a new listener
+    socket.on("newMessage", (message) => {
+      // Only add messages that involve the currently selected user
+      const isRelevantMessage = 
+        message.senderId === selectedUser._id || 
+        message.receiverId === selectedUser._id;
+        
+      if (isRelevantMessage) {
+        // Check if this message already exists in our state
+        const messageExists = get().messages.some(m => m._id === message._id);
+        
+        // Only add if it doesn't exist
+        if (!messageExists) {
+          set((state) => ({
+            messages: [...state.messages, message],
+          }));
+        }
+      }
+    });
   },
 
   unsubscribeFromMessages: () => {
-    // Skip socket operations for now
-    console.log("Socket functionality not yet implemented");
+    const socket = useAuthStore.getState().socket;
+    if (socket) {
+      socket.off("newMessage");
+    }
   },
 
   setSelectedUser: (selectedUser) => set({ selectedUser }),
