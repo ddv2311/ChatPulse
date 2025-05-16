@@ -20,6 +20,8 @@ export function getReceiverSocketId(userId) {
 
 // used to store online users
 const userSocketMap = {}; // {userId: socketId}
+// used to track users in group rooms
+const groupRooms = {}; // {groupId: [userId1, userId2, ...]}
 
 io.on("connection", (socket) => {
   console.log("A user connected", socket.id);
@@ -30,8 +32,60 @@ io.on("connection", (socket) => {
   // io.emit() is used to send events to all the connected clients
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
+  // Join a group chat room
+  socket.on("joinGroup", (groupId) => {
+    socket.join(groupId);
+    console.log(`User ${userId} joined group ${groupId}`);
+    
+    // Track user in group room
+    if (!groupRooms[groupId]) {
+      groupRooms[groupId] = [];
+    }
+    
+    if (!groupRooms[groupId].includes(userId)) {
+      groupRooms[groupId].push(userId);
+    }
+    
+    // Notify group members about online users in the group
+    io.to(groupId).emit("groupOnlineUsers", {
+      groupId,
+      onlineUsers: groupRooms[groupId].filter(id => Object.keys(userSocketMap).includes(id))
+    });
+  });
+  
+  // Leave a group chat room
+  socket.on("leaveGroup", (groupId) => {
+    socket.leave(groupId);
+    console.log(`User ${userId} left group ${groupId}`);
+    
+    // Remove user from group room tracking
+    if (groupRooms[groupId]) {
+      groupRooms[groupId] = groupRooms[groupId].filter(id => id !== userId);
+      
+      // Notify remaining group members
+      io.to(groupId).emit("groupOnlineUsers", {
+        groupId,
+        onlineUsers: groupRooms[groupId].filter(id => Object.keys(userSocketMap).includes(id))
+      });
+    }
+  });
+
   socket.on("disconnect", () => {
     console.log("A user disconnected", socket.id);
+    
+    // Update all group rooms the user was part of
+    Object.keys(groupRooms).forEach(groupId => {
+      if (groupRooms[groupId].includes(userId)) {
+        groupRooms[groupId] = groupRooms[groupId].filter(id => id !== userId);
+        
+        // Notify remaining group members
+        io.to(groupId).emit("groupOnlineUsers", {
+          groupId,
+          onlineUsers: groupRooms[groupId].filter(id => Object.keys(userSocketMap).includes(id))
+        });
+      }
+    });
+    
     delete userSocketMap[userId];
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });

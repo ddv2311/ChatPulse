@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { connectDB } from "./lib/db.js";
 import cookieParser from "cookie-parser";
 import messageRoutes from "./routes/message.js";
+import groupRoutes from "./routes/group.js";
 import cors from "cors";
 import { io, app, server } from "./lib/socket.js";
 import path from "path";
@@ -34,6 +35,7 @@ app.use(cors({
 // API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/groups", groupRoutes);
 
 // Serve static files in production
 if(process.env.NODE_ENV === "production"){
