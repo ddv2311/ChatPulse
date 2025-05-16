@@ -33,6 +33,7 @@ export const useChatStore = create((set, get) => ({
       set({ isMessagesLoading: false });
     }
   },
+  
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get();
     try {
@@ -40,6 +41,21 @@ export const useChatStore = create((set, get) => ({
       set({ messages: [...messages, res.data] });
     } catch (error) {
       toast.error(error.response?.data?.message || "Error sending message");
+    }
+  },
+
+  updateMessageStatus: async (messageId, status) => {
+    try {
+      await axiosInstance.put(`/messages/status/${messageId}`, { status });
+      
+      // Update message status in local state
+      set(state => ({
+        messages: state.messages.map(msg => 
+          msg._id === messageId ? { ...msg, status } : msg
+        )
+      }));
+    } catch (error) {
+      console.error("Error updating message status:", error);
     }
   },
 
@@ -52,8 +68,9 @@ export const useChatStore = create((set, get) => ({
     
     // First, unsubscribe from any existing listeners to prevent duplicates
     socket.off("newMessage");
+    socket.off("messageStatusUpdate");
     
-    // Then add a new listener
+    // Then add new listeners
     socket.on("newMessage", (message) => {
       // Only add messages that involve the currently selected user
       const isRelevantMessage = 
@@ -69,8 +86,28 @@ export const useChatStore = create((set, get) => ({
           set((state) => ({
             messages: [...state.messages, message],
           }));
+          
+          // If the message is from the selected user, mark it as read
+          if (message.senderId === selectedUser._id) {
+            get().updateMessageStatus(message._id, "read");
+            
+            // Notify the sender that we've read their message
+            socket.emit("messageRead", {
+              messageId: message._id,
+              senderId: message.senderId
+            });
+          }
         }
       }
+    });
+    
+    // Listen for message status updates
+    socket.on("messageStatusUpdate", ({ messageId, status }) => {
+      set(state => ({
+        messages: state.messages.map(msg => 
+          msg._id === messageId ? { ...msg, status } : msg
+        )
+      }));
     });
   },
 
@@ -78,6 +115,7 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
     if (socket) {
       socket.off("newMessage");
+      socket.off("messageStatusUpdate");
     }
   },
 

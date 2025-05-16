@@ -16,7 +16,16 @@ const groupMessageSchema = new mongoose.Schema({
     },
     image: {
         type: String
-    }
+    },
+    status: {
+        type: String,
+        enum: ["sent", "delivered"],
+        default: "sent"
+    },
+    readBy: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+    }]
 }, { timestamps: true });
 
 const GroupMessage = mongoose.model("GroupMessage", groupMessageSchema);

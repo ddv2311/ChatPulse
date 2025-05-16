@@ -70,6 +70,27 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Message status update events
+  socket.on("messageDelivered", ({ messageId, senderId }) => {
+    const senderSocketId = getReceiverSocketId(senderId);
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("messageStatusUpdate", {
+        messageId,
+        status: "delivered"
+      });
+    }
+  });
+
+  socket.on("messageRead", ({ messageId, senderId }) => {
+    const senderSocketId = getReceiverSocketId(senderId);
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("messageStatusUpdate", {
+        messageId,
+        status: "read"
+      });
+    }
+  });
+
   socket.on("disconnect", () => {
     console.log("A user disconnected", socket.id);
     

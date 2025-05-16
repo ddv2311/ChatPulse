@@ -159,6 +159,8 @@ export const useGroupStore = create((set, get) => ({
     socket.off("newGroupMessage");
     socket.off("deleteGroupMessage");
     socket.off("groupOnlineUsers");
+    socket.off("groupMessageStatusUpdate");
+    socket.off("groupMessageRead");
     
     // Listen for new messages
     socket.on("newGroupMessage", (message) => {
@@ -172,6 +174,15 @@ export const useGroupStore = create((set, get) => ({
           set((state) => ({
             groupMessages: [...state.groupMessages, message],
           }));
+          
+          // Mark the message as read if it wasn't sent by the current user
+          const authUser = useAuthStore.getState().authUser;
+          if (message.senderId._id !== authUser._id) {
+            // Call API to mark as read
+            axiosInstance.put(`/groups/messages/${message._id}/read`).catch(err => {
+              console.error("Error marking message as read:", err);
+            });
+          }
         }
       }
     });
@@ -180,6 +191,34 @@ export const useGroupStore = create((set, get) => ({
     socket.on("deleteGroupMessage", ({ messageId }) => {
       set((state) => ({
         groupMessages: state.groupMessages.filter(m => m._id !== messageId)
+      }));
+    });
+    
+    // Listen for message status updates
+    socket.on("groupMessageStatusUpdate", ({ messageId, status }) => {
+      set((state) => ({
+        groupMessages: state.groupMessages.map(msg => 
+          msg._id === messageId ? { ...msg, status } : msg
+        )
+      }));
+    });
+    
+    // Listen for message read updates
+    socket.on("groupMessageRead", ({ messageId, userId }) => {
+      set((state) => ({
+        groupMessages: state.groupMessages.map(msg => {
+          if (msg._id === messageId) {
+            // Add the user to the readBy array if not already there
+            const userAlreadyRead = msg.readBy.some(user => user._id === userId);
+            if (!userAlreadyRead) {
+              return {
+                ...msg,
+                readBy: [...msg.readBy, { _id: userId }]
+              };
+            }
+          }
+          return msg;
+        })
       }));
     });
     
@@ -206,6 +245,8 @@ export const useGroupStore = create((set, get) => ({
       socket.off("newGroupMessage");
       socket.off("deleteGroupMessage");
       socket.off("groupOnlineUsers");
+      socket.off("groupMessageStatusUpdate");
+      socket.off("groupMessageRead");
     }
   },
   

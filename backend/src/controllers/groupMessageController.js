@@ -28,20 +28,35 @@ export const sendGroupMessage = async (req, res) => {
             groupId,
             senderId: userId,
             text: text || "",
-            image: image || ""
+            image: image || "",
+            status: "sent",
+            readBy: [userId] // The sender has already "read" the message
         });
         
         const savedMessage = await newMessage.save();
         
         // Populate sender information
         const populatedMessage = await GroupMessage.findById(savedMessage._id)
-            .populate("senderId", "fullName email profilePicture");
+            .populate("senderId", "fullName email profilePicture")
+            .populate("readBy", "fullName email profilePicture");
         
         // Update group's updatedAt timestamp
         await GroupChat.findByIdAndUpdate(groupId, { updatedAt: Date.now() });
         
         // Emit socket event to all users in the group
         io.to(groupId).emit("newGroupMessage", populatedMessage);
+        
+        // Mark as delivered if there are other online users in the group
+        if (io.sockets.adapter.rooms.get(groupId)?.size > 1) {
+            populatedMessage.status = "delivered";
+            await GroupMessage.findByIdAndUpdate(savedMessage._id, { status: "delivered" });
+            
+            // Notify about status change
+            io.to(groupId).emit("groupMessageStatusUpdate", {
+                messageId: populatedMessage._id,
+                status: "delivered"
+            });
+        }
         
         res.status(201).json(populatedMessage);
     } catch (error) {
@@ -69,7 +84,33 @@ export const getGroupMessages = async (req, res) => {
         
         const messages = await GroupMessage.find({ groupId })
             .populate("senderId", "fullName email profilePicture")
+            .populate("readBy", "fullName email profilePicture")
             .sort({ createdAt: 1 });
+        
+        // Mark messages as read by this user
+        const unreadMessages = messages.filter(msg => 
+            !msg.readBy.some(user => user._id.toString() === userId.toString())
+        );
+        
+        if (unreadMessages.length > 0) {
+            // Add current user to readBy for each unread message
+            for (const msg of unreadMessages) {
+                await GroupMessage.findByIdAndUpdate(
+                    msg._id,
+                    { $addToSet: { readBy: userId } }
+                );
+                
+                // Update the messages in the response
+                msg.readBy.push(userId);
+                
+                // Notify group about read status
+                io.to(groupId).emit("groupMessageRead", {
+                    messageId: msg._id,
+                    userId: userId,
+                    groupId: groupId
+                });
+            }
+        }
         
         res.status(200).json(messages);
     } catch (error) {
@@ -109,6 +150,46 @@ export const deleteGroupMessage = async (req, res) => {
         res.status(200).json({ message: "Message deleted successfully" });
     } catch (error) {
         console.error("Error in deleteGroupMessage controller:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+// Mark group message as read
+export const markGroupMessageRead = async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const userId = req.user._id;
+        
+        const message = await GroupMessage.findById(messageId);
+        
+        if (!message) {
+            return res.status(404).json({ error: "Message not found" });
+        }
+        
+        // Check if user is a member of the group
+        const group = await GroupChat.findById(message.groupId);
+        if (!group || !group.members.includes(userId)) {
+            return res.status(403).json({ error: "You are not a member of this group" });
+        }
+        
+        // Add user to readBy if not already there
+        if (!message.readBy.includes(userId)) {
+            await GroupMessage.findByIdAndUpdate(
+                messageId,
+                { $addToSet: { readBy: userId } }
+            );
+            
+            // Notify group about read status
+            io.to(message.groupId.toString()).emit("groupMessageRead", {
+                messageId,
+                userId,
+                groupId: message.groupId
+            });
+        }
+        
+        res.status(200).json({ message: "Message marked as read" });
+    } catch (error) {
+        console.error("Error in markGroupMessageRead controller:", error);
         res.status(500).json({ error: "Internal server error" });
     }
 }; 

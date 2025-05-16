@@ -6,6 +6,7 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
+import { Check, CheckCheck, Clock } from "lucide-react";
 
 const ChatContainer = () => {
   const {
@@ -57,13 +58,13 @@ const ChatContainer = () => {
       <ChatHeader />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
+        {messages.map((message, index) => (
           <div
             key={message._id}
             className={`chat ${message.senderId === authUser._id ? "chat-end" : "chat-start"}`}
-            ref={messageEndRef}
+            ref={index === messages.length - 1 ? messageEndRef : null}
           >
-            <div className=" chat-image avatar">
+            <div className="chat-image avatar">
               <div className="size-10 rounded-full border">
                 <img
                   src={
@@ -75,10 +76,17 @@ const ChatContainer = () => {
                 />
               </div>
             </div>
-            <div className="chat-header mb-1">
+            <div className="chat-header mb-1 flex items-center gap-1">
               <time className="text-xs opacity-50 ml-1">
                 {formatMessageTime(message.createdAt)}
               </time>
+              {message.senderId === authUser._id && (
+                <span className="ml-1">
+                  {message.status === "sent" && <Clock className="size-3 text-zinc-400" />}
+                  {message.status === "delivered" && <Check className="size-3 text-zinc-400" />}
+                  {message.status === "read" && <CheckCheck className="size-3 text-emerald-500" />}
+                </span>
+              )}
             </div>
             <div className="chat-bubble flex flex-col">
               {message.image && (
