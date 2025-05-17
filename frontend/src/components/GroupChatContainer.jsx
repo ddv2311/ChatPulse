@@ -1,9 +1,4 @@
-import { useState, useEffect, useRef } from "react";
-import { useGroupStore } from "../store/useGroupStore";
-import { useAuthStore } from "../store/useAuthStore";
-import { Send, Image as ImageIcon, Loader, Users, Info, X } from "lucide-react";
-import GroupMessage from "./GroupMessage";
-import GroupInfoModal from "./modals/GroupInfoModal";
+import { useState, useEffect, useRef } from "react";import { useGroupStore } from "../store/useGroupStore";import { useAuthStore } from "../store/useAuthStore";import { Send, Image as ImageIcon, Loader, Users, Info, X } from "lucide-react";import GroupMessage from "./GroupMessage";import GroupInfoModal from "./modals/GroupInfoModal";import GroupCallButton from "./GroupCallButton";
 
 const GroupChatContainer = () => {
   const [message, setMessage] = useState("");
@@ -106,13 +101,20 @@ const GroupChatContainer = () => {
             </div>
           </div>
         </div>
-        <button
-          onClick={() => setIsInfoModalOpen(true)}
-          className="btn btn-sm btn-ghost btn-circle"
-          title="Group Info"
-        >
-          <Info className="size-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Group call buttons */}
+          <GroupCallButton group={selectedGroup} type="audio" />
+          <GroupCallButton group={selectedGroup} type="video" />
+          
+          {/* Group info button */}
+          <button
+            onClick={() => setIsInfoModalOpen(true)}
+            className="btn btn-sm btn-ghost btn-circle"
+            title="Group Info"
+          >
+            <Info className="size-5" />
+          </button>
+        </div>
       </div>
 
       {/* Messages */}

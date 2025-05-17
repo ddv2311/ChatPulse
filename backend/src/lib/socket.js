@@ -125,6 +125,60 @@ io.on("connection", (socket) => {
     }
   });
 
+  // WebRTC signaling events
+  // Call request event
+  socket.on("callUser", ({ userToCall, from, name, callType }) => {
+    const userSocketId = getReceiverSocketId(userToCall);
+    if (userSocketId) {
+      io.to(userSocketId).emit("incomingCall", {
+        from,
+        name,
+        callType
+      });
+    }
+  });
+
+  // Call answer event
+  socket.on("answerCall", ({ to, signal, from }) => {
+    const userSocketId = getReceiverSocketId(to);
+    if (userSocketId) {
+      io.to(userSocketId).emit("callAccepted", {
+        signal,
+        from
+      });
+    }
+  });
+
+  // Call signal event for WebRTC
+  socket.on("callSignal", ({ to, signal }) => {
+    const userSocketId = getReceiverSocketId(to);
+    if (userSocketId) {
+      io.to(userSocketId).emit("receiveSignal", {
+        signal
+      });
+    }
+  });
+
+  // Call reject event
+  socket.on("rejectCall", ({ to, from }) => {
+    const userSocketId = getReceiverSocketId(to);
+    if (userSocketId) {
+      io.to(userSocketId).emit("callRejected", {
+        from
+      });
+    }
+  });
+
+  // Call end event
+  socket.on("endCall", ({ to, from }) => {
+    const userSocketId = getReceiverSocketId(to);
+    if (userSocketId) {
+      io.to(userSocketId).emit("callEnded", {
+        from
+      });
+    }
+  });
+
   socket.on("disconnect", () => {
     console.log("A user disconnected", socket.id);
     

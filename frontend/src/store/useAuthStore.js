@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
+import { useCallStore } from "./useCallStore";
 
 const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
 
@@ -99,7 +100,41 @@ export const useAuthStore = create((set, get) => ({
     socket.on("getOnlineUsers", (userIds) => {
       set({ onlineUsers: userIds });
     });
+    
+    // WebRTC signaling events
+    socket.on("incomingCall", (data) => {
+      const callStore = useCallStore.getState();
+      callStore.handleIncomingCall(data);
+    });
+    
+    socket.on("callAccepted", (data) => {
+      const callStore = useCallStore.getState();
+      callStore.handleCallAccepted(data);
+    });
+    
+    socket.on("receiveSignal", (data) => {
+      const callStore = useCallStore.getState();
+      const { myPeer } = callStore;
+      if (myPeer) {
+        myPeer.signal(data.signal);
+      }
+    });
+    
+    socket.on("callRejected", () => {
+      const callStore = useCallStore.getState();
+      toast.error("Call was rejected");
+      callStore.endCall();
+    });
+    
+    socket.on("callEnded", () => {
+      const callStore = useCallStore.getState();
+      if (callStore.isCallActive) {
+        toast.info("Call ended by the other user");
+        callStore.endCall();
+      }
+    });
   },
+  
   disconnectSocket: () => {
     if (get().socket?.connected) get().socket.disconnect();
   },

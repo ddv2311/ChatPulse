@@ -12,6 +12,8 @@ import { useEffect } from 'react'
 import { Loader } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+import CallUI from './components/CallUI'
+import IncomingCallNotification from './components/IncomingCallNotification'
 
 const App = () => {
   const {authUser,checkAuth,isCheckingAuth} = useAuthStore();
@@ -19,7 +21,7 @@ const App = () => {
   
   useEffect(() => {
     checkAuth();
-  },[checkAuth]);
+  }, [checkAuth]);
   
   // Apply theme to document element
   useEffect(() => {
@@ -39,15 +41,23 @@ const App = () => {
   
   return (
   <div className="min-h-screen">
-  <Navbar />
-  <Routes>
-    <Route path="/" element={authUser ?<HomePage/>:<Navigate to="/login"/>}/>
-    <Route path="/signup" element={!authUser ?<SignUpPage/>:<Navigate to="/"/>}/>
-    <Route path="/login" element={!authUser ?<LoginPage/>:<Navigate to="/"/>}/>
-    <Route path="/settings" element={<SettingsPage/>}/>
-    <Route path="/profile" element={authUser ?<ProfilePage/>:<Navigate to="/login"/>}/>
-  </Routes>
-  <Toaster position="top-center" />
+    <Navbar />
+    <Routes>
+      <Route path="/" element={authUser ?<HomePage/>:<Navigate to="/login"/>}/>
+      <Route path="/signup" element={!authUser ?<SignUpPage/>:<Navigate to="/"/>}/>
+      <Route path="/login" element={!authUser ?<LoginPage/>:<Navigate to="/"/>}/>
+      <Route path="/settings" element={<SettingsPage/>}/>
+      <Route path="/profile" element={authUser ?<ProfilePage/>:<Navigate to="/login"/>}/>
+    </Routes>
+    <Toaster position="top-center" />
+    
+    {/* Call UI components */}
+    {authUser && (
+      <>
+        <CallUI />
+        <IncomingCallNotification />
+      </>
+    )}
   </div>
   );
 }

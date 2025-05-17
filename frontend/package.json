@@ -12,14 +12,19 @@
   },
   "dependencies": {
     "axios": "^1.9.0",
+    "buffer": "^6.0.3",
     "chat-app": "file:..",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.510.0",
+    "process": "^0.11.10",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hot-toast": "^2.5.2",
     "react-router-dom": "^7.6.0",
+    "simple-peer": "^9.11.1",
     "socket.io-client": "^4.8.1",
+    "stream-browserify": "^3.0.0",
+    "util": "^0.12.5",
     "zustand": "^5.0.4"
   },
   "devDependencies": {
