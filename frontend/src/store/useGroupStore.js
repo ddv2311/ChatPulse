@@ -10,6 +10,21 @@ export const useGroupStore = create((set, get) => ({
   isGroupsLoading: false,
   isGroupMessagesLoading: false,
   isCreatingGroup: false,
+  searchQuery: "",
+  searchResults: [],
+  
+  // Search functions
+  setSearchQuery: (query) => {
+    const { groupMessages } = get();
+    const results = query.trim() === "" ? [] : groupMessages.filter(message => 
+      message.text && message.text.toLowerCase().includes(query.toLowerCase())
+    );
+    set({ searchQuery: query, searchResults: results });
+  },
+  
+  clearSearch: () => {
+    set({ searchQuery: "", searchResults: [] });
+  },
   
   // Get all groups the user is a member of
   getGroups: async () => {

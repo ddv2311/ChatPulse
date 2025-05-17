@@ -9,6 +9,21 @@ export const useChatStore = create((set, get) => ({
   selectedUser: null,
   isUsersLoading: false,
   isMessagesLoading: false,
+  searchQuery: "",
+  searchResults: [],
+
+  // Search functions
+  setSearchQuery: (query) => {
+    const { messages } = get();
+    const results = query.trim() === "" ? [] : messages.filter(message => 
+      message.text && message.text.toLowerCase().includes(query.toLowerCase())
+    );
+    set({ searchQuery: query, searchResults: results });
+  },
+  
+  clearSearch: () => {
+    set({ searchQuery: "", searchResults: [] });
+  },
 
   getUsers: async () => {
     set({ isUsersLoading: true });

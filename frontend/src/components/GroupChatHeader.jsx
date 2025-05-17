@@ -1,15 +1,11 @@
-import { Search, X } from "lucide-react";
-import { useAuthStore } from "../store/useAuthStore";
-import { useChatStore } from "../store/useChatStore";
-import CallButton from "./CallButton";
 import { useState } from "react";
+import { Search, Info, X, Users } from "lucide-react";
+import { useGroupStore } from "../store/useGroupStore";
+import GroupCallButton from "./GroupCallButton";
 
-const ChatHeader = () => {
-  const { selectedUser, setSelectedUser, setSearchQuery, clearSearch, searchQuery } = useChatStore();
-  const { onlineUsers } = useAuthStore();
+const GroupChatHeader = ({ onInfoModalOpen }) => {
+  const { selectedGroup, setSearchQuery, clearSearch, searchQuery } = useGroupStore();
   const [showSearch, setShowSearch] = useState(false);
-  
-  const isUserOnline = onlineUsers.includes(selectedUser._id);
   
   const handleSearchToggle = () => {
     if (showSearch) {
@@ -55,22 +51,30 @@ const ChatHeader = () => {
       ) : (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Avatar */}
-            <div className="avatar">
-              <div className="size-8 sm:size-10 rounded-full relative">
-                <img src={selectedUser.profilePicture || "/avatar.png"} alt={selectedUser.fullName} />
+            <div className={`
+              size-8 sm:size-10 rounded-full flex items-center justify-center
+              ${selectedGroup.groupImage ? "" : "bg-primary text-primary-content"}
+            `}>
+              {selectedGroup.groupImage ? (
+                <img
+                  src={selectedGroup.groupImage}
+                  alt={selectedGroup.name}
+                  className="size-10 object-cover rounded-full"
+                />
+              ) : (
+                <span className="text-lg font-bold">
+                  {selectedGroup.name.substring(0, 2).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div>
+              <h3 className="font-medium text-sm sm:text-base">{selectedGroup.name}</h3>
+              <div className="text-xs sm:text-sm text-base-content/70 flex items-center gap-1">
+                <Users className="size-3" />
+                <span>{selectedGroup.members.length} members</span>
               </div>
             </div>
-
-            {/* User info */}
-            <div>
-              <h3 className="font-medium text-sm sm:text-base">{selectedUser.fullName}</h3>
-              <p className="text-xs sm:text-sm text-base-content/70">
-                {isUserOnline ? "Online" : "Offline"}
-              </p>
-            </div>
           </div>
-          
           <div className="flex items-center gap-1 sm:gap-2">
             {/* Search button */}
             <button 
@@ -81,17 +85,17 @@ const ChatHeader = () => {
               <Search className="size-4" />
             </button>
             
-            {/* Call buttons (only show if user is online) */}
-            {isUserOnline && (
-              <>
-                <CallButton user={selectedUser} type="audio" />
-                <CallButton user={selectedUser} type="video" />
-              </>
-            )}
+            {/* Group call buttons */}
+            <GroupCallButton group={selectedGroup} type="audio" />
+            <GroupCallButton group={selectedGroup} type="video" />
             
-            {/* Close button */}
-            <button onClick={() => setSelectedUser(null)} className="btn btn-sm btn-ghost btn-circle">
-              <X />
+            {/* Group info button */}
+            <button
+              onClick={onInfoModalOpen}
+              className="btn btn-sm btn-ghost btn-circle"
+              title="Group Info"
+            >
+              <Info className="size-4" />
             </button>
           </div>
         </div>
@@ -99,4 +103,5 @@ const ChatHeader = () => {
     </div>
   );
 };
-export default ChatHeader;
+
+export default GroupChatHeader; 

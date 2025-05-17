@@ -1,10 +1,17 @@
-import { useState, useEffect, useRef } from "react";import { useGroupStore } from "../store/useGroupStore";import { useAuthStore } from "../store/useAuthStore";import { Send, Image as ImageIcon, Loader, Users, Info, X } from "lucide-react";import GroupMessage from "./GroupMessage";import GroupInfoModal from "./modals/GroupInfoModal";import GroupCallButton from "./GroupCallButton";
+import { useState, useEffect, useRef } from "react";
+import { useGroupStore } from "../store/useGroupStore";
+import { useAuthStore } from "../store/useAuthStore";
+import { Send, Image as ImageIcon, Loader, Users, ArrowDownCircle, ArrowUpCircle, X } from "lucide-react";
+import GroupMessage from "./GroupMessage";
+import GroupInfoModal from "./modals/GroupInfoModal";
+import GroupChatHeader from "./GroupChatHeader";
 
 const GroupChatContainer = () => {
   const [message, setMessage] = useState("");
   const [image, setImage] = useState(null);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
 
   const {
     selectedGroup,
@@ -13,10 +20,16 @@ const GroupChatContainer = () => {
     isGroupMessagesLoading,
     subscribeToGroupMessages,
     unsubscribeFromGroupMessages,
+    searchQuery,
+    searchResults,
+    clearSearch
   } = useGroupStore();
 
   const { authUser } = useAuthStore();
   const messagesEndRef = useRef(null);
+  
+  // Refs for search result navigation
+  const searchResultRefs = useRef({});
 
   // Subscribe to socket events when component mounts or selected group changes
   useEffect(() => {
@@ -33,6 +46,58 @@ const GroupChatContainer = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [groupMessages]);
+  
+  // Reset search index when search results change
+  useEffect(() => {
+    setCurrentSearchIndex(0);
+    // Scroll to first result if available
+    if (searchResults.length > 0) {
+      setTimeout(() => {
+        scrollToSearchResult(0);
+      }, 100);
+    }
+  }, [searchResults]);
+
+  // Handle scrolling to search result
+  const scrollToSearchResult = (index) => {
+    if (searchResults.length === 0) return;
+    
+    // Keep index within bounds
+    const boundedIndex = Math.max(0, Math.min(index, searchResults.length - 1));
+    setCurrentSearchIndex(boundedIndex);
+    
+    // Get the element and scroll to it
+    const messageId = searchResults[boundedIndex]._id;
+    const element = searchResultRefs.current[messageId];
+    
+    if (element) {
+      element.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }
+  };
+  
+  // Handle navigation buttons for search
+  const handlePrevResult = () => {
+    scrollToSearchResult(currentSearchIndex - 1);
+  };
+  
+  const handleNextResult = () => {
+    scrollToSearchResult(currentSearchIndex + 1);
+  };
+  
+  // Highlight search terms in message text
+  const highlightSearchText = (text) => {
+    if (!searchQuery || !text) return text;
+    
+    const parts = text.split(new RegExp(`(${searchQuery})`, 'gi'));
+    return parts.map((part, i) => 
+      part.toLowerCase() === searchQuery.toLowerCase()
+        ? <mark key={i} className="bg-warning text-warning-content px-0.5 rounded">{part}</mark>
+        : part
+    );
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -75,47 +140,41 @@ const GroupChatContainer = () => {
   return (
     <div className="flex-1 flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-base-300 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className={`
-            size-10 rounded-full flex items-center justify-center
-            ${selectedGroup.groupImage ? "" : "bg-primary text-primary-content"}
-          `}>
-            {selectedGroup.groupImage ? (
-              <img
-                src={selectedGroup.groupImage}
-                alt={selectedGroup.name}
-                className="size-10 object-cover rounded-full"
-              />
-            ) : (
-              <span className="text-lg font-bold">
-                {selectedGroup.name.substring(0, 2).toUpperCase()}
-              </span>
-            )}
-          </div>
-          <div>
-            <h3 className="font-medium">{selectedGroup.name}</h3>
-            <div className="text-xs text-zinc-500 flex items-center gap-1">
-              <Users className="size-3" />
-              <span>{selectedGroup.members.length} members</span>
-            </div>
+      <GroupChatHeader onInfoModalOpen={() => setIsInfoModalOpen(true)} />
+      
+      {/* Search results navigation */}
+      {searchResults.length > 0 && (
+        <div className="p-2 bg-base-200 border-b border-base-300 flex items-center justify-between text-xs sm:text-sm">
+          <span>
+            {currentSearchIndex + 1} of {searchResults.length}
+          </span>
+          <div className="flex gap-1 sm:gap-2">
+            <button 
+              onClick={handlePrevResult}
+              className="btn btn-sm btn-ghost btn-circle btn-xs sm:btn-sm"
+              disabled={currentSearchIndex === 0}
+              aria-label="Previous result"
+            >
+              <ArrowUpCircle className="size-4 sm:size-5" />
+            </button>
+            <button 
+              onClick={handleNextResult}
+              className="btn btn-sm btn-ghost btn-circle btn-xs sm:btn-sm"
+              disabled={currentSearchIndex >= searchResults.length - 1}
+              aria-label="Next result"
+            >
+              <ArrowDownCircle className="size-4 sm:size-5" />
+            </button>
+            <button 
+              onClick={() => clearSearch()}
+              className="btn btn-xs sm:btn-sm btn-ghost text-xs sm:text-sm"
+              aria-label="Clear search"
+            >
+              Clear
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Group call buttons */}
-          <GroupCallButton group={selectedGroup} type="audio" />
-          <GroupCallButton group={selectedGroup} type="video" />
-          
-          {/* Group info button */}
-          <button
-            onClick={() => setIsInfoModalOpen(true)}
-            className="btn btn-sm btn-ghost btn-circle"
-            title="Group Info"
-          >
-            <Info className="size-5" />
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 p-4 overflow-y-auto">
@@ -125,14 +184,38 @@ const GroupChatContainer = () => {
           </div>
         ) : groupMessages.length > 0 ? (
           <div className="space-y-4">
-            {groupMessages.map((msg) => (
-              <GroupMessage
-                key={msg._id}
-                message={msg}
-                isOwnMessage={msg.senderId._id === authUser._id}
-              />
-            ))}
-            <div ref={messagesEndRef} />
+            {groupMessages.map((msg) => {
+              // Check if this message is in search results
+              const isSearchResult = searchQuery && searchResults.some(m => m._id === msg._id);
+              // Check if this is the current focused search result
+              const isCurrentResult = searchResults[currentSearchIndex]?._id === msg._id;
+              const isOwnMessage = msg.senderId._id === authUser._id;
+              
+              return (
+                <div
+                  key={msg._id}
+                  ref={(el) => {
+                    // Store reference if it's a search result
+                    if (isSearchResult) {
+                      searchResultRefs.current[msg._id] = el;
+                    }
+                    // Last message reference for auto-scroll
+                    if (msg._id === groupMessages[groupMessages.length - 1]._id) {
+                      messagesEndRef.current = el;
+                    }
+                  }}
+                  className={`${
+                    isSearchResult ? "opacity-100" : searchQuery ? "opacity-70" : "opacity-100"
+                  } ${isCurrentResult ? "ring-2 ring-warning ring-offset-2 rounded-lg" : ""}`}
+                >
+                  <GroupMessage
+                    message={msg}
+                    isOwnMessage={isOwnMessage}
+                    highlightText={highlightSearchText}
+                  />
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-zinc-500">

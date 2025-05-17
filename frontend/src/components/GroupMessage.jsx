@@ -7,7 +7,7 @@ import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
 import MessageActions from "./MessageActions";
 
-const GroupMessage = ({ message, isOwnMessage }) => {
+const GroupMessage = ({ message, isOwnMessage, highlightText }) => {
   const [showReadBy, setShowReadBy] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -71,6 +71,11 @@ const GroupMessage = ({ message, isOwnMessage }) => {
         console.error("Error deleting message:", error);
       }
     }
+  };
+
+  // Process message text with highlighting if needed
+  const processMessageText = (text) => {
+    return highlightText ? highlightText(text) : text;
   };
 
   return (
@@ -140,7 +145,7 @@ const GroupMessage = ({ message, isOwnMessage }) => {
             }`}
           >
             {/* Message content */}
-            {message.text && <p className="whitespace-pre-wrap break-words">{message.text}</p>}
+            {message.text && <p className="whitespace-pre-wrap break-words">{processMessageText(message.text)}</p>}
             
             {/* Image if present */}
             {message.image && (
@@ -176,61 +181,53 @@ const GroupMessage = ({ message, isOwnMessage }) => {
         {/* Display reactions */}
         {message.reactions && message.reactions.length > 0 && (
           <div className="mt-1">
-            <MessageReactions 
-              reactions={message.reactions} 
-              onRemoveReaction={handleRemoveReaction} 
+            <MessageReactions
+              reactions={message.reactions}
+              onRemoveReaction={handleRemoveReaction}
               authUserId={authUser._id}
             />
           </div>
         )}
         
-        {/* Timestamp and read status */}
-        <div className="flex items-center gap-1 mt-1">
-          <span className="text-xs text-zinc-500">{formattedTime}</span>
+        {/* Message footer with timestamp and read status */}
+        <div className={`text-xs text-zinc-500 mt-1 flex items-center gap-1 ${isOwnMessage ? "justify-end" : "justify-start"}`}>
+          <span>{formattedTime}</span>
           
-          {/* Show edited indicator */}
+          {/* Read status indicator (for own messages) */}
+          {isOwnMessage && readCount > 0 && (
+            <button 
+              className="flex items-center gap-0.5 hover:text-zinc-700 transition-colors"
+              onClick={() => setShowReadBy(!showReadBy)}
+              title={`Read by ${readCount} ${readCount === 1 ? 'person' : 'people'}`}
+            >
+              <Eye className="size-3" />
+              <span>{readCount}</span>
+            </button>
+          )}
+          
+          {/* Edited indicator */}
           {message.isEdited && (
-            <span className="text-xs text-zinc-500 flex items-center gap-0.5 ml-1">
+            <span className="flex items-center gap-0.5">
               <Pencil className="size-3" />
               <span>edited</span>
             </span>
           )}
-          
-          {/* Show message status for own messages */}
-          {isOwnMessage && (
-            <div className="flex items-center">
-              {message.status === "sent" && <Clock className="size-3 text-zinc-400 ml-1" />}
-              {message.status === "delivered" && <Check className="size-3 text-zinc-400 ml-1" />}
-              
-              {/* Read indicator with count */}
-              {readCount > 0 && (
-                <button 
-                  className="flex items-center ml-1 text-xs text-zinc-500 hover:text-zinc-400"
-                  onClick={() => setShowReadBy(!showReadBy)}
-                  title={`Read by ${readCount} ${readCount === 1 ? 'person' : 'people'}`}
-                >
-                  <Eye className="size-3 mr-0.5" />
-                  {readCount}
-                </button>
-              )}
-            </div>
-          )}
         </div>
         
-        {/* Read by tooltip */}
+        {/* Read by list (when expanded) */}
         {showReadBy && readCount > 0 && (
-          <div className="mt-1 p-2 bg-base-200 rounded-md text-xs">
-            <div className="font-medium mb-1">Read by:</div>
-            <ul>
+          <div className="bg-base-200 rounded-md p-2 mt-1 text-xs">
+            <p className="font-semibold mb-1">Read by:</p>
+            <ul className="space-y-1">
               {message.readBy
                 .filter(user => user._id !== message.senderId._id)
                 .map(user => (
-                  <li key={user._id} className="flex items-center gap-1 mb-1">
-                    <img 
-                      src={user.profilePicture || "/avatar.png"} 
-                      alt={user.fullName}
-                      className="w-4 h-4 rounded-full"
-                    />
+                  <li key={user._id} className="flex items-center gap-1">
+                    <div className="avatar">
+                      <div className="w-4 h-4 rounded-full">
+                        <img src={user.profilePicture || "/avatar.png"} alt={user.fullName} />
+                      </div>
+                    </div>
                     <span>{user.fullName}</span>
                   </li>
                 ))
