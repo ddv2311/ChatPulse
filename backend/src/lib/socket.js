@@ -138,26 +138,9 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Call answer event
-  socket.on("answerCall", ({ to, signal, from }) => {
-    const userSocketId = getReceiverSocketId(to);
-    if (userSocketId) {
-      io.to(userSocketId).emit("callAccepted", {
-        signal,
-        from
-      });
-    }
-  });
+    // Call answer event  socket.on("answerCall", ({ to, signal, from }) => {    const userSocketId = getReceiverSocketId(to);    console.log("Received call answer from", from, "forwarding to", to, "at socket", userSocketId);    if (userSocketId) {      io.to(userSocketId).emit("callAccepted", {        signal,        from      });    } else {      console.warn("Could not find socket ID for user", to);    }  });
 
-  // Call signal event for WebRTC
-  socket.on("callSignal", ({ to, signal }) => {
-    const userSocketId = getReceiverSocketId(to);
-    if (userSocketId) {
-      io.to(userSocketId).emit("receiveSignal", {
-        signal
-      });
-    }
-  });
+    // Call signal event for WebRTC  socket.on("callSignal", ({ to, signal }) => {    const userSocketId = getReceiverSocketId(to);    console.log("Received call signal, forwarding to", to, "at socket", userSocketId);    if (userSocketId) {      io.to(userSocketId).emit("receiveSignal", {        signal,        from: userId      });    } else {      console.warn("Could not find socket ID for user", to);    }  });
 
   // Call reject event
   socket.on("rejectCall", ({ to, from }) => {

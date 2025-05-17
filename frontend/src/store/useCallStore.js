@@ -34,8 +34,16 @@ export const useCallStore = create((set, get) => ({
       
       // Get media stream based on call type
       const constraints = {
-        audio: true,
-        video: callType === "video"
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        },
+        video: callType === "video" ? {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 }
+        } : false
       };
       
       console.log("Requesting media access with constraints:", constraints);
@@ -106,32 +114,103 @@ export const useCallStore = create((set, get) => ({
       
       // Get media stream based on call type
       const constraints = {
-        audio: true,
-        video: callType === "video"
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        },
+        video: callType === "video" ? {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 }
+        } : false
       };
       
       console.log("Getting user media with constraints:", constraints);
       
-      const stream = await navigator.mediaDevices.getUserMedia(constraints)
-        .catch(err => {
-          console.error("Error getting user media:", err);
-          throw new Error(`Could not access ${callType === "video" ? "camera and microphone" : "microphone"}. Please check permissions.`);
-        });
+      // First, ensure no active tracks are running by stopping them
+      const { localStream } = get();
+      if (localStream) {
+        try {
+          const tracks = localStream.getTracks();
+          console.log(`Stopping ${tracks.length} existing tracks before requesting new ones`);
+          tracks.forEach(track => {
+            try {
+              track.stop();
+              console.log(`Stopped existing ${track.kind} track`);
+            } catch (err) {
+              console.warn(`Error stopping ${track.kind} track:`, err);
+            }
+          });
+          
+          // Set localStream to null to prevent any references to the old stream
+          set({ localStream: null });
+          
+          // Small delay to ensure tracks are fully released
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (err) {
+          console.warn("Error stopping existing tracks:", err);
+        }
+      }
       
-      console.log("Got media stream:", stream);
+      // Try to get media with better error handling
+      let stream;
+      let retryCount = 0;
+      const maxRetries = 2;
+      
+      while (retryCount <= maxRetries) {
+        try {
+          console.log(`Media access attempt ${retryCount + 1}/${maxRetries + 1}`);
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          console.log("Successfully got media stream:", stream);
+          break; // Exit the loop if successful
+        } catch (err) {
+          console.error(`Media access attempt ${retryCount + 1} failed:`, err);
+          
+          if (retryCount < maxRetries) {
+            // Wait longer between each retry
+            const delay = 500 * (retryCount + 1);
+            console.log(`Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            retryCount++;
+          } else {
+            // All retries failed
+            console.error("All media access attempts failed");
+            throw new Error(`Could not access ${callType === "video" ? "camera and microphone" : "microphone"}. Please check permissions.`);
+          }
+        }
+      }
+      
+      console.log("Got media stream with tracks:", stream.getTracks().map(t => t.kind).join(', '));
       
       // Dynamically import simple-peer
       console.log("Importing simple-peer...");
       const SimplePeer = (await import('simple-peer')).default;
       console.log("Simple-peer imported successfully");
       
-      // Create new peer
+      // Create new peer with ICE servers for NAT traversal
       console.log("Creating peer connection...");
       const peer = new SimplePeer({
         initiator: false,
-        trickle: false,
-        stream
+        trickle: true, // Enable trickle ICE for better connection establishment
+        stream,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:global.stun.twilio.com:3478?transport=udp' }
+          ]
+        }
       });
+      
+      // Store direct access to internal RTCPeerConnection for stats
+      if (peer._pc) {
+        // Simple-peer exposes the RTCPeerConnection as _pc
+        console.log("Successfully accessed internal RTCPeerConnection");
+      } else {
+        console.warn("Could not access internal RTCPeerConnection");
+      }
       
       // Handle peer events
       peer.on("signal", (data) => {
@@ -153,10 +232,27 @@ export const useCallStore = create((set, get) => ({
         get().endCall();
       });
       
-      // Handle the signal from the caller
-      socket.once("callAccepted", (signal) => {
-        console.log("Received call accepted signal");
-        peer.signal(signal);
+      peer.on("connect", () => {
+        console.log("Peer connection established!");
+      });
+      
+      // Handle connection state changes for diagnostics
+      if (peer._pc) {
+        peer._pc.onconnectionstatechange = (event) => {
+          console.log("Connection state change:", peer._pc.connectionState);
+        };
+        
+        peer._pc.oniceconnectionstatechange = (event) => {
+          console.log("ICE connection state change:", peer._pc.iceConnectionState);
+        };
+      }
+      
+      // Listen for ICE candidates from the caller
+      socket.on("receiveSignal", (data) => {
+        console.log("Received signal data:", data);
+        if (data.signal && peer) {
+          peer.signal(data.signal);
+        }
       });
       
       set({
@@ -199,13 +295,32 @@ export const useCallStore = create((set, get) => ({
       const SimplePeer = (await import('simple-peer')).default;
       console.log("Simple-peer imported successfully");
       
-      // Create new peer
+      // Create new peer with ICE servers for NAT traversal
       console.log("Creating peer connection as initiator...");
       const peer = new SimplePeer({
         initiator: true,
-        trickle: false,
-        stream: localStream
+        trickle: true, // Enable trickle ICE for better connections
+        stream: localStream,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:global.stun.twilio.com:3478?transport=udp' }
+          ]
+        }
       });
+      
+      // Handle connection state changes for diagnostics
+      if (peer._pc) {
+        peer._pc.onconnectionstatechange = (event) => {
+          console.log("Connection state change:", peer._pc.connectionState);
+        };
+        
+        peer._pc.oniceconnectionstatechange = (event) => {
+          console.log("ICE connection state change:", peer._pc.iceConnectionState);
+        };
+      }
       
       // Handle peer events
       peer.on("signal", (signal) => {
@@ -226,9 +341,21 @@ export const useCallStore = create((set, get) => ({
         get().endCall();
       });
       
-      // Signal the peer with the answer
+      peer.on("connect", () => {
+        console.log("Peer connection established as initiator!");
+      });
+      
+      // Signal the peer with the answer received from callee
       console.log("Signaling peer with remote answer");
       peer.signal(data.signal);
+      
+      // Listen for additional ICE candidates
+      socket.on("receiveSignal", (data) => {
+        console.log("Received additional signal data:", data);
+        if (data.signal && peer) {
+          peer.signal(data.signal);
+        }
+      });
       
       set({
         myPeer: peer,
@@ -240,6 +367,17 @@ export const useCallStore = create((set, get) => ({
     } catch (error) {
       console.error("Error handling accepted call:", error);
       get().endCall();
+    }
+  },
+  
+  // Handle received WebRTC signal (like ICE candidates)
+  handleReceiveSignal: (data) => {
+    const { myPeer } = get();
+    if (myPeer && data.signal) {
+      console.log("Received signal data, passing to peer:", data.signal);
+      myPeer.signal(data.signal);
+    } else {
+      console.warn("Received signal but no active peer connection found");
     }
   },
   
@@ -271,14 +409,42 @@ export const useCallStore = create((set, get) => ({
       });
     }
     
-    // Stop local media tracks
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
+    // Close peer connection first to stop all RTP senders
+    if (myPeer) {
+      try {
+        myPeer.destroy();
+      } catch (err) {
+        console.warn("Error destroying peer:", err);
+      }
     }
     
-    // Close peer connection
-    if (myPeer) {
-      myPeer.destroy();
+    // Stop local media tracks
+    if (localStream) {
+      try {
+        const tracks = localStream.getTracks();
+        console.log(`Stopping ${tracks.length} local tracks`);
+        
+        // Stop each track individually and log any errors
+        tracks.forEach(track => {
+          try {
+            track.stop();
+            console.log(`Stopped ${track.kind} track`);
+          } catch (err) {
+            console.warn(`Error stopping ${track.kind} track:`, err);
+          }
+        });
+      } catch (err) {
+        console.warn("Error stopping tracks:", err);
+      }
+    }
+    
+    // Make sure to reset localStream reference
+    set({ localStream: null });
+    
+    // Clean up socket listeners to prevent memory leaks
+    if (socket) {
+      socket.off("receiveSignal");
+      socket.off("callAccepted");
     }
     
     // Reset call state
@@ -288,7 +454,6 @@ export const useCallStore = create((set, get) => ({
       isOutgoingCall: false,
       callType: null,
       remoteUser: null,
-      localStream: null,
       remoteStream: null,
       callAccepted: false,
       callEnded: true,

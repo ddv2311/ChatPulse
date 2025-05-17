@@ -112,13 +112,7 @@ export const useAuthStore = create((set, get) => ({
       callStore.handleCallAccepted(data);
     });
     
-    socket.on("receiveSignal", (data) => {
-      const callStore = useCallStore.getState();
-      const { myPeer } = callStore;
-      if (myPeer) {
-        myPeer.signal(data.signal);
-      }
-    });
+        socket.on("receiveSignal", (data) => {      const callStore = useCallStore.getState();      callStore.handleReceiveSignal(data);    });
     
     socket.on("callRejected", () => {
       const callStore = useCallStore.getState();
