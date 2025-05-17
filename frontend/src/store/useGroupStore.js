@@ -182,6 +182,43 @@ export const useGroupStore = create((set, get) => ({
     }
   },
   
+  // Edit a group message
+  editGroupMessage: async (messageId, text) => {
+    try {
+      const res = await axiosInstance.put(`/groups/messages/${messageId}`, { text });
+      
+      // Update message in local state
+      set(state => ({
+        groupMessages: state.groupMessages.map(msg => 
+          msg._id === messageId ? { ...res.data } : msg
+        )
+      }));
+      
+      return res.data;
+    } catch (error) {
+      console.error("Error editing group message:", error);
+      toast.error(error.response?.data?.error || "Failed to edit message");
+      throw error;
+    }
+  },
+  
+  // Delete a group message
+  deleteGroupMessage: async (messageId) => {
+    try {
+      await axiosInstance.delete(`/groups/messages/${messageId}`);
+      
+      // Remove message from local state
+      set(state => ({
+        groupMessages: state.groupMessages.filter(msg => msg._id !== messageId)
+      }));
+      
+      toast.success("Message deleted");
+    } catch (error) {
+      console.error("Error deleting group message:", error);
+      toast.error(error.response?.data?.error || "Failed to delete message");
+    }
+  },
+  
   // Subscribe to socket events for group messages
   subscribeToGroupMessages: () => {
     const { selectedGroup } = get();
@@ -200,6 +237,7 @@ export const useGroupStore = create((set, get) => ({
     socket.off("groupMessageStatusUpdate");
     socket.off("groupMessageRead");
     socket.off("groupMessageReaction");
+    socket.off("editGroupMessage");
     
     // Listen for new messages
     socket.on("newGroupMessage", (message) => {
@@ -278,6 +316,15 @@ export const useGroupStore = create((set, get) => ({
         )
       }));
     });
+    
+    // Listen for message edit updates
+    socket.on("editGroupMessage", ({ messageId, text, isEdited }) => {
+      set(state => ({
+        groupMessages: state.groupMessages.map(msg => 
+          msg._id === messageId ? { ...msg, text, isEdited } : msg
+        )
+      }));
+    });
   },
   
   // Unsubscribe from group message events
@@ -296,6 +343,7 @@ export const useGroupStore = create((set, get) => ({
       socket.off("groupMessageStatusUpdate");
       socket.off("groupMessageRead");
       socket.off("groupMessageReaction");
+      socket.off("editGroupMessage");
     }
   },
   

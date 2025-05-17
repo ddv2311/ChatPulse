@@ -22,6 +22,10 @@ const groupMessageSchema = new mongoose.Schema({
         enum: ["sent", "delivered"],
         default: "sent"
     },
+    isEdited: {
+        type: Boolean,
+        default: false
+    },
     readBy: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "User"

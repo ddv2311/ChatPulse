@@ -97,6 +97,64 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  // Edit a message
+  editMessage: async (messageId, text) => {
+    try {
+      const res = await axiosInstance.put(`/messages/${messageId}`, { text });
+      
+      // Update message in local state
+      set(state => ({
+        messages: state.messages.map(msg => 
+          msg._id === messageId ? { ...msg, text: res.data.text, isEdited: true } : msg
+        )
+      }));
+      
+      // Notify the receiver via socket
+      const socket = useAuthStore.getState().socket;
+      const selectedUser = get().selectedUser;
+      if (socket && selectedUser) {
+        socket.emit("editMessage", {
+          messageId,
+          text,
+          receiverId: selectedUser._id
+        });
+      }
+      
+      return res.data;
+    } catch (error) {
+      console.error("Error editing message:", error);
+      toast.error(error.response?.data?.error || "Failed to edit message");
+      throw error;
+    }
+  },
+  
+  // Delete a message
+  deleteMessage: async (messageId) => {
+    try {
+      await axiosInstance.delete(`/messages/${messageId}`);
+      
+      // Remove message from local state
+      set(state => ({
+        messages: state.messages.filter(msg => msg._id !== messageId)
+      }));
+      
+      // Notify the receiver via socket
+      const socket = useAuthStore.getState().socket;
+      const selectedUser = get().selectedUser;
+      if (socket && selectedUser) {
+        socket.emit("deleteMessage", {
+          messageId,
+          receiverId: selectedUser._id
+        });
+      }
+      
+      toast.success("Message deleted");
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      toast.error(error.response?.data?.error || "Failed to delete message");
+    }
+  },
+
   subscribeToMessages: () => {
     const { selectedUser } = get();
     if (!selectedUser) return;
@@ -108,6 +166,8 @@ export const useChatStore = create((set, get) => ({
     socket.off("newMessage");
     socket.off("messageStatusUpdate");
     socket.off("messageReaction");
+    socket.off("messageEdited");
+    socket.off("messageDeleted");
     
     // Then add new listeners
     socket.on("newMessage", (message) => {
@@ -157,6 +217,22 @@ export const useChatStore = create((set, get) => ({
         )
       }));
     });
+    
+    // Listen for message edit updates
+    socket.on("messageEdited", ({ messageId, text, isEdited }) => {
+      set(state => ({
+        messages: state.messages.map(msg => 
+          msg._id === messageId ? { ...msg, text, isEdited } : msg
+        )
+      }));
+    });
+    
+    // Listen for message deletion
+    socket.on("messageDeleted", ({ messageId }) => {
+      set(state => ({
+        messages: state.messages.filter(msg => msg._id !== messageId)
+      }));
+    });
   },
 
   unsubscribeFromMessages: () => {
@@ -165,6 +241,8 @@ export const useChatStore = create((set, get) => ({
       socket.off("newMessage");
       socket.off("messageStatusUpdate");
       socket.off("messageReaction");
+      socket.off("messageEdited");
+      socket.off("messageDeleted");
     }
   },
 

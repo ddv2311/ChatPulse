@@ -294,4 +294,50 @@ export const removeGroupMessageReaction = async (req, res) => {
         console.error("Error in removeGroupMessageReaction controller:", error);
         res.status(500).json({ error: "Internal server error" });
     }
+};
+
+// Edit a group message
+export const editGroupMessage = async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { text } = req.body;
+        const userId = req.user._id;
+        
+        if (!text || !text.trim()) {
+            return res.status(400).json({ error: "Message text is required" });
+        }
+        
+        const message = await GroupMessage.findById(messageId);
+        
+        if (!message) {
+            return res.status(404).json({ error: "Message not found" });
+        }
+        
+        // Only the sender can edit their own message
+        if (message.senderId.toString() !== userId.toString()) {
+            return res.status(403).json({ error: "You can only edit your own messages" });
+        }
+        
+        // Add edited flag and update text
+        message.text = text.trim();
+        message.isEdited = true;
+        await message.save();
+        
+        // Populate sender information for the response
+        const populatedMessage = await GroupMessage.findById(messageId)
+            .populate("senderId", "fullName email profilePicture")
+            .populate("readBy", "fullName email profilePicture");
+        
+        // Emit socket event to all users in the group
+        io.to(message.groupId.toString()).emit("editGroupMessage", {
+            messageId,
+            text: populatedMessage.text,
+            isEdited: true
+        });
+        
+        res.status(200).json(populatedMessage);
+    } catch (error) {
+        console.error("Error in editGroupMessage controller:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
 }; 

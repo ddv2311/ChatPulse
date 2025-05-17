@@ -103,6 +103,28 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Message edit event (client-side)
+  socket.on("editMessage", ({ messageId, text, receiverId }) => {
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageEdited", {
+        messageId,
+        text,
+        isEdited: true
+      });
+    }
+  });
+
+  // Message delete event (client-side)
+  socket.on("deleteMessage", ({ messageId, receiverId }) => {
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageDeleted", {
+        messageId
+      });
+    }
+  });
+
   socket.on("disconnect", () => {
     console.log("A user disconnected", socket.id);
     

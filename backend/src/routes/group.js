@@ -15,7 +15,8 @@ import {
     deleteGroupMessage,
     markGroupMessageRead,
     addGroupMessageReaction,
-    removeGroupMessageReaction
+    removeGroupMessageReaction,
+    editGroupMessage
 } from "../controllers/groupMessageController.js";
 
 const router = express.Router();
@@ -36,5 +37,6 @@ router.delete("/messages/:messageId", protectRoute, deleteGroupMessage);
 router.put("/messages/:messageId/read", protectRoute, markGroupMessageRead);
 router.post("/messages/:messageId/reactions", protectRoute, addGroupMessageReaction);
 router.delete("/messages/:messageId/reactions", protectRoute, removeGroupMessageReaction);
+router.put("/messages/:messageId", protectRoute, editGroupMessage);
 
 export default router; 

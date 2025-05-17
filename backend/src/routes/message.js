@@ -6,7 +6,9 @@ import {
   sendMessage, 
   updateMessageStatus, 
   addMessageReaction, 
-  removeMessageReaction 
+  removeMessageReaction,
+  editMessage,
+  deleteMessage 
 } from "../controllers/messageController.js";
 
 const router = express.Router();
@@ -17,5 +19,7 @@ router.post("/send/:id", protectRoute, sendMessage);
 router.put("/status/:messageId", protectRoute, updateMessageStatus);
 router.post("/:messageId/reactions", protectRoute, addMessageReaction);
 router.delete("/:messageId/reactions", protectRoute, removeMessageReaction);
+router.put("/:messageId", protectRoute, editMessage);
+router.delete("/:messageId", protectRoute, deleteMessage);
 
 export default router;

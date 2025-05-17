@@ -1,15 +1,25 @@
 import { formatDistanceToNow } from "date-fns";
-import { Check, CheckCheck, Clock, Eye } from "lucide-react";
+import { Check, CheckCheck, Clock, Eye, Pencil } from "lucide-react";
 import { useState } from "react";
 import ReactionPicker from "./ReactionPicker";
 import MessageReactions from "./MessageReactions";
 import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
+import MessageActions from "./MessageActions";
 
 const GroupMessage = ({ message, isOwnMessage }) => {
   const [showReadBy, setShowReadBy] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
-  const { addGroupMessageReaction, removeGroupMessageReaction } = useGroupStore();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState("");
+  
+  const { 
+    addGroupMessageReaction, 
+    removeGroupMessageReaction, 
+    editGroupMessage, 
+    deleteGroupMessage 
+  } = useGroupStore();
+  
   const { authUser } = useAuthStore();
   
   const formattedTime = formatDistanceToNow(new Date(message.createdAt), {
@@ -34,6 +44,32 @@ const GroupMessage = ({ message, isOwnMessage }) => {
       await removeGroupMessageReaction(message._id);
     } catch (error) {
       console.error("Error removing reaction:", error);
+    }
+  };
+  
+  const handleEdit = () => {
+    setIsEditing(true);
+    setEditText(message.text || "");
+  };
+  
+  const handleSaveEdit = async () => {
+    if (!editText.trim()) return;
+    
+    try {
+      await editGroupMessage(message._id, editText);
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error saving edit:", error);
+    }
+  };
+  
+  const handleDelete = async () => {
+    if (window.confirm("Are you sure you want to delete this message?")) {
+      try {
+        await deleteGroupMessage(message._id);
+      } catch (error) {
+        console.error("Error deleting message:", error);
+      }
     }
   };
 
@@ -67,34 +103,75 @@ const GroupMessage = ({ message, isOwnMessage }) => {
           </span>
         )}
 
-        <div
-          className={`rounded-lg p-3 relative group ${
+        {isEditing ? (
+          <div className={`rounded-lg p-3 ${
             isOwnMessage
-              ? "bg-primary text-primary-content"
+              ? "bg-primary/10 text-primary-content"
               : "bg-base-300 text-base-content"
-          }`}
-        >
-          {/* Message content */}
-          {message.text && <p className="whitespace-pre-wrap break-words">{message.text}</p>}
-          
-          {/* Image if present */}
-          {message.image && (
-            <img
-              src={message.image}
-              alt="Message attachment"
-              className="mt-2 rounded-md max-w-full max-h-60 object-contain"
+          }`}>
+            <textarea
+              className="textarea textarea-bordered w-full bg-base-200 text-base-content"
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              autoFocus
             />
-          )}
-          
-          {/* Reaction button - only visible on hover */}
-          <div className={`absolute ${isOwnMessage ? "left-0 -translate-x-full" : "right-0 translate-x-full"} top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity`}>
-            <ReactionPicker 
-              onSelectEmoji={handleAddReaction}
-              isOpen={showReactionPicker}
-              setIsOpen={setShowReactionPicker}
-            />
+            <div className="flex justify-end gap-2 mt-2">
+              <button 
+                className="btn btn-sm btn-ghost" 
+                onClick={() => setIsEditing(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-sm btn-primary" 
+                onClick={handleSaveEdit}
+                disabled={!editText.trim()}
+              >
+                Save
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div
+            className={`rounded-lg p-3 relative group ${
+              isOwnMessage
+                ? "bg-primary text-primary-content"
+                : "bg-base-300 text-base-content"
+            }`}
+          >
+            {/* Message content */}
+            {message.text && <p className="whitespace-pre-wrap break-words">{message.text}</p>}
+            
+            {/* Image if present */}
+            {message.image && (
+              <img
+                src={message.image}
+                alt="Message attachment"
+                className="mt-2 rounded-md max-w-full max-h-60 object-contain"
+              />
+            )}
+            
+            {/* Message actions (edit, delete) - only for own messages */}
+            {isOwnMessage && (
+              <div className="absolute top-0 right-0 -mt-1 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <MessageActions 
+                  isVisible={true}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              </div>
+            )}
+            
+            {/* Reaction button - only visible on hover */}
+            <div className={`absolute ${isOwnMessage ? "left-0 -translate-x-full" : "right-0 translate-x-full"} top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity`}>
+              <ReactionPicker 
+                onSelectEmoji={handleAddReaction}
+                isOpen={showReactionPicker}
+                setIsOpen={setShowReactionPicker}
+              />
+            </div>
+          </div>
+        )}
         
         {/* Display reactions */}
         {message.reactions && message.reactions.length > 0 && (
@@ -110,6 +187,14 @@ const GroupMessage = ({ message, isOwnMessage }) => {
         {/* Timestamp and read status */}
         <div className="flex items-center gap-1 mt-1">
           <span className="text-xs text-zinc-500">{formattedTime}</span>
+          
+          {/* Show edited indicator */}
+          {message.isEdited && (
+            <span className="text-xs text-zinc-500 flex items-center gap-0.5 ml-1">
+              <Pencil className="size-3" />
+              <span>edited</span>
+            </span>
+          )}
           
           {/* Show message status for own messages */}
           {isOwnMessage && (
