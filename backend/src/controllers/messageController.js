@@ -158,3 +158,119 @@ export const updateMessageStatus = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+// New endpoint to add reaction to a message
+export const addMessageReaction = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+    const userId = req.user._id;
+    
+    if (!emoji) {
+      return res.status(400).json({ error: "Emoji is required" });
+    }
+    
+    const message = await Message.findById(messageId);
+    
+    if (!message) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+    
+    // Check if user is either the sender or receiver of the message
+    if (message.senderId.toString() !== userId.toString() && 
+        message.receiverId.toString() !== userId.toString()) {
+      return res.status(403).json({ error: "Not authorized to react to this message" });
+    }
+    
+    // Remove existing reaction from this user if any
+    const existingReactionIndex = message.reactions.findIndex(
+      reaction => reaction.userId.toString() === userId.toString()
+    );
+    
+    if (existingReactionIndex !== -1) {
+      message.reactions.splice(existingReactionIndex, 1);
+    }
+    
+    // Add new reaction
+    message.reactions.push({ userId, emoji });
+    await message.save();
+    
+    // Populate user info for the reaction
+    const populatedMessage = await Message.findById(messageId)
+      .populate("reactions.userId", "fullName profilePicture");
+    
+    // Notify the other user about the reaction
+    const otherUserId = userId.toString() === message.senderId.toString() 
+      ? message.receiverId.toString() 
+      : message.senderId.toString();
+    
+    const receiverSocketId = getReceiverSocketId(otherUserId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageReaction", {
+        messageId,
+        reactions: populatedMessage.reactions
+      });
+    }
+    
+    res.status(200).json({ 
+      messageId,
+      reactions: populatedMessage.reactions
+    });
+  } catch (error) {
+    console.log("Error in addMessageReaction controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// New endpoint to remove reaction from a message
+export const removeMessageReaction = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.user._id;
+    
+    const message = await Message.findById(messageId);
+    
+    if (!message) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+    
+    // Check if user is either the sender or receiver of the message
+    if (message.senderId.toString() !== userId.toString() && 
+        message.receiverId.toString() !== userId.toString()) {
+      return res.status(403).json({ error: "Not authorized to remove reaction from this message" });
+    }
+    
+    // Remove reaction
+    const existingReactionIndex = message.reactions.findIndex(
+      reaction => reaction.userId.toString() === userId.toString()
+    );
+    
+    if (existingReactionIndex === -1) {
+      return res.status(400).json({ error: "No reaction found to remove" });
+    }
+    
+    message.reactions.splice(existingReactionIndex, 1);
+    await message.save();
+    
+    // Notify the other user about the reaction removal
+    const otherUserId = userId.toString() === message.senderId.toString() 
+      ? message.receiverId.toString() 
+      : message.senderId.toString();
+    
+    const receiverSocketId = getReceiverSocketId(otherUserId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageReaction", {
+        messageId,
+        reactions: message.reactions
+      });
+    }
+    
+    res.status(200).json({ 
+      messageId,
+      reactions: message.reactions
+    });
+  } catch (error) {
+    console.log("Error in removeMessageReaction controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};

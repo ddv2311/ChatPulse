@@ -192,4 +192,106 @@ export const markGroupMessageRead = async (req, res) => {
         console.error("Error in markGroupMessageRead controller:", error);
         res.status(500).json({ error: "Internal server error" });
     }
+};
+
+// Add reaction to a group message
+export const addGroupMessageReaction = async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { emoji } = req.body;
+        const userId = req.user._id;
+        
+        if (!emoji) {
+            return res.status(400).json({ error: "Emoji is required" });
+        }
+        
+        const message = await GroupMessage.findById(messageId);
+        
+        if (!message) {
+            return res.status(404).json({ error: "Message not found" });
+        }
+        
+        // Check if user is a member of the group
+        const group = await GroupChat.findById(message.groupId);
+        if (!group || !group.members.includes(userId)) {
+            return res.status(403).json({ error: "You are not a member of this group" });
+        }
+        
+        // Remove existing reaction from this user if any
+        const existingReactionIndex = message.reactions.findIndex(
+            reaction => reaction.userId.toString() === userId.toString()
+        );
+        
+        if (existingReactionIndex !== -1) {
+            message.reactions.splice(existingReactionIndex, 1);
+        }
+        
+        // Add new reaction
+        message.reactions.push({ userId, emoji });
+        await message.save();
+        
+        // Populate user info for the reaction
+        const populatedMessage = await GroupMessage.findById(messageId)
+            .populate("reactions.userId", "fullName email profilePicture");
+        
+        // Emit socket event to all users in the group
+        io.to(message.groupId.toString()).emit("groupMessageReaction", {
+            messageId,
+            reactions: populatedMessage.reactions
+        });
+        
+        res.status(200).json({ 
+            messageId,
+            reactions: populatedMessage.reactions
+        });
+    } catch (error) {
+        console.error("Error in addGroupMessageReaction controller:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+// Remove reaction from a group message
+export const removeGroupMessageReaction = async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const userId = req.user._id;
+        
+        const message = await GroupMessage.findById(messageId);
+        
+        if (!message) {
+            return res.status(404).json({ error: "Message not found" });
+        }
+        
+        // Check if user is a member of the group
+        const group = await GroupChat.findById(message.groupId);
+        if (!group || !group.members.includes(userId)) {
+            return res.status(403).json({ error: "You are not a member of this group" });
+        }
+        
+        // Find and remove the reaction
+        const existingReactionIndex = message.reactions.findIndex(
+            reaction => reaction.userId.toString() === userId.toString()
+        );
+        
+        if (existingReactionIndex === -1) {
+            return res.status(400).json({ error: "No reaction found to remove" });
+        }
+        
+        message.reactions.splice(existingReactionIndex, 1);
+        await message.save();
+        
+        // Emit socket event to all users in the group
+        io.to(message.groupId.toString()).emit("groupMessageReaction", {
+            messageId,
+            reactions: message.reactions
+        });
+        
+        res.status(200).json({ 
+            messageId,
+            reactions: message.reactions
+        });
+    } catch (error) {
+        console.error("Error in removeGroupMessageReaction controller:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
 }; 

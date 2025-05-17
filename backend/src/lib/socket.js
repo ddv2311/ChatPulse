@@ -91,6 +91,18 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Message reaction events
+  socket.on("addReaction", ({ messageId, emoji, senderId }) => {
+    const senderSocketId = getReceiverSocketId(senderId);
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("messageReaction", {
+        messageId,
+        emoji,
+        userId
+      });
+    }
+  });
+
   socket.on("disconnect", () => {
     console.log("A user disconnected", socket.id);
     

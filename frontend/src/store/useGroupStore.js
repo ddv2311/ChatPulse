@@ -144,6 +144,44 @@ export const useGroupStore = create((set, get) => ({
     }
   },
   
+  // Add reaction to a group message
+  addGroupMessageReaction: async (messageId, emoji) => {
+    try {
+      const res = await axiosInstance.post(`/groups/messages/${messageId}/reactions`, { emoji });
+      
+      // Update message reactions in local state
+      set(state => ({
+        groupMessages: state.groupMessages.map(msg => 
+          msg._id === messageId ? { ...msg, reactions: res.data.reactions } : msg
+        )
+      }));
+      
+      return res.data;
+    } catch (error) {
+      console.error("Error adding reaction to group message:", error);
+      toast.error(error.response?.data?.error || "Failed to add reaction");
+    }
+  },
+  
+  // Remove reaction from a group message
+  removeGroupMessageReaction: async (messageId) => {
+    try {
+      const res = await axiosInstance.delete(`/groups/messages/${messageId}/reactions`);
+      
+      // Update message reactions in local state
+      set(state => ({
+        groupMessages: state.groupMessages.map(msg => 
+          msg._id === messageId ? { ...msg, reactions: res.data.reactions } : msg
+        )
+      }));
+      
+      return res.data;
+    } catch (error) {
+      console.error("Error removing reaction from group message:", error);
+      toast.error(error.response?.data?.error || "Failed to remove reaction");
+    }
+  },
+  
   // Subscribe to socket events for group messages
   subscribeToGroupMessages: () => {
     const { selectedGroup } = get();
@@ -161,6 +199,7 @@ export const useGroupStore = create((set, get) => ({
     socket.off("groupOnlineUsers");
     socket.off("groupMessageStatusUpdate");
     socket.off("groupMessageRead");
+    socket.off("groupMessageReaction");
     
     // Listen for new messages
     socket.on("newGroupMessage", (message) => {
@@ -230,6 +269,15 @@ export const useGroupStore = create((set, get) => ({
         console.log("Online users in group:", onlineUsers);
       }
     });
+    
+    // Listen for message reaction updates
+    socket.on("groupMessageReaction", ({ messageId, reactions }) => {
+      set(state => ({
+        groupMessages: state.groupMessages.map(msg => 
+          msg._id === messageId ? { ...msg, reactions } : msg
+        )
+      }));
+    });
   },
   
   // Unsubscribe from group message events
@@ -247,6 +295,7 @@ export const useGroupStore = create((set, get) => ({
       socket.off("groupOnlineUsers");
       socket.off("groupMessageStatusUpdate");
       socket.off("groupMessageRead");
+      socket.off("groupMessageReaction");
     }
   },
   

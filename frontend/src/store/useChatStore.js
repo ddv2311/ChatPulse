@@ -58,6 +58,44 @@ export const useChatStore = create((set, get) => ({
       console.error("Error updating message status:", error);
     }
   },
+  
+  // Add reaction to a message
+  addReaction: async (messageId, emoji) => {
+    try {
+      const res = await axiosInstance.post(`/messages/${messageId}/reactions`, { emoji });
+      
+      // Update message reactions in local state
+      set(state => ({
+        messages: state.messages.map(msg => 
+          msg._id === messageId ? { ...msg, reactions: res.data.reactions } : msg
+        )
+      }));
+      
+      return res.data;
+    } catch (error) {
+      console.error("Error adding reaction:", error);
+      toast.error(error.response?.data?.error || "Failed to add reaction");
+    }
+  },
+  
+  // Remove reaction from a message
+  removeReaction: async (messageId) => {
+    try {
+      const res = await axiosInstance.delete(`/messages/${messageId}/reactions`);
+      
+      // Update message reactions in local state
+      set(state => ({
+        messages: state.messages.map(msg => 
+          msg._id === messageId ? { ...msg, reactions: res.data.reactions } : msg
+        )
+      }));
+      
+      return res.data;
+    } catch (error) {
+      console.error("Error removing reaction:", error);
+      toast.error(error.response?.data?.error || "Failed to remove reaction");
+    }
+  },
 
   subscribeToMessages: () => {
     const { selectedUser } = get();
@@ -69,6 +107,7 @@ export const useChatStore = create((set, get) => ({
     // First, unsubscribe from any existing listeners to prevent duplicates
     socket.off("newMessage");
     socket.off("messageStatusUpdate");
+    socket.off("messageReaction");
     
     // Then add new listeners
     socket.on("newMessage", (message) => {
@@ -109,6 +148,15 @@ export const useChatStore = create((set, get) => ({
         )
       }));
     });
+    
+    // Listen for message reaction updates
+    socket.on("messageReaction", ({ messageId, reactions }) => {
+      set(state => ({
+        messages: state.messages.map(msg => 
+          msg._id === messageId ? { ...msg, reactions } : msg
+        )
+      }));
+    });
   },
 
   unsubscribeFromMessages: () => {
@@ -116,6 +164,7 @@ export const useChatStore = create((set, get) => ({
     if (socket) {
       socket.off("newMessage");
       socket.off("messageStatusUpdate");
+      socket.off("messageReaction");
     }
   },
 

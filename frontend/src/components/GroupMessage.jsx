@@ -1,9 +1,16 @@
 import { formatDistanceToNow } from "date-fns";
 import { Check, CheckCheck, Clock, Eye } from "lucide-react";
 import { useState } from "react";
+import ReactionPicker from "./ReactionPicker";
+import MessageReactions from "./MessageReactions";
+import { useGroupStore } from "../store/useGroupStore";
+import { useAuthStore } from "../store/useAuthStore";
 
 const GroupMessage = ({ message, isOwnMessage }) => {
   const [showReadBy, setShowReadBy] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const { addGroupMessageReaction, removeGroupMessageReaction } = useGroupStore();
+  const { authUser } = useAuthStore();
   
   const formattedTime = formatDistanceToNow(new Date(message.createdAt), {
     addSuffix: true,
@@ -12,6 +19,23 @@ const GroupMessage = ({ message, isOwnMessage }) => {
   // Calculate read count (excluding sender)
   const readCount = message.readBy ? 
     message.readBy.filter(user => user._id !== message.senderId._id).length : 0;
+
+  const handleAddReaction = async (emoji) => {
+    try {
+      await addGroupMessageReaction(message._id, emoji);
+    } catch (error) {
+      console.error("Error adding reaction:", error);
+    }
+    setShowReactionPicker(false);
+  };
+
+  const handleRemoveReaction = async () => {
+    try {
+      await removeGroupMessageReaction(message._id);
+    } catch (error) {
+      console.error("Error removing reaction:", error);
+    }
+  };
 
   return (
     <div
@@ -44,7 +68,7 @@ const GroupMessage = ({ message, isOwnMessage }) => {
         )}
 
         <div
-          className={`rounded-lg p-3 ${
+          className={`rounded-lg p-3 relative group ${
             isOwnMessage
               ? "bg-primary text-primary-content"
               : "bg-base-300 text-base-content"
@@ -61,7 +85,27 @@ const GroupMessage = ({ message, isOwnMessage }) => {
               className="mt-2 rounded-md max-w-full max-h-60 object-contain"
             />
           )}
+          
+          {/* Reaction button - only visible on hover */}
+          <div className={`absolute ${isOwnMessage ? "left-0 -translate-x-full" : "right-0 translate-x-full"} top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity`}>
+            <ReactionPicker 
+              onSelectEmoji={handleAddReaction}
+              isOpen={showReactionPicker}
+              setIsOpen={setShowReactionPicker}
+            />
+          </div>
         </div>
+        
+        {/* Display reactions */}
+        {message.reactions && message.reactions.length > 0 && (
+          <div className="mt-1">
+            <MessageReactions 
+              reactions={message.reactions} 
+              onRemoveReaction={handleRemoveReaction} 
+              authUserId={authUser._id}
+            />
+          </div>
+        )}
         
         {/* Timestamp and read status */}
         <div className="flex items-center gap-1 mt-1">

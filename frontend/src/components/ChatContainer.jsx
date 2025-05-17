@@ -1,5 +1,5 @@
 import { useChatStore } from "../store/useChatStore";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
@@ -7,6 +7,8 @@ import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
 import { Check, CheckCheck, Clock } from "lucide-react";
+import ReactionPicker from "./ReactionPicker";
+import MessageReactions from "./MessageReactions";
 
 const ChatContainer = () => {
   const {
@@ -16,9 +18,12 @@ const ChatContainer = () => {
     selectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
+    addReaction,
+    removeReaction
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
+  const [reactionMessage, setReactionMessage] = useState(null);
 
   useEffect(() => {
     if (!selectedUser) return;
@@ -34,6 +39,23 @@ const ChatContainer = () => {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  const handleAddReaction = async (messageId, emoji) => {
+    try {
+      await addReaction(messageId, emoji);
+    } catch (error) {
+      console.error("Error adding reaction:", error);
+    }
+    setReactionMessage(null);
+  };
+
+  const handleRemoveReaction = async (messageId) => {
+    try {
+      await removeReaction(messageId);
+    } catch (error) {
+      console.error("Error removing reaction:", error);
+    }
+  };
 
   if (!selectedUser) {
     return (
@@ -88,7 +110,7 @@ const ChatContainer = () => {
                 </span>
               )}
             </div>
-            <div className="chat-bubble flex flex-col">
+            <div className="chat-bubble flex flex-col relative group">
               {message.image && (
                 <img
                   src={message.image}
@@ -97,7 +119,27 @@ const ChatContainer = () => {
                 />
               )}
               {message.text && <p>{message.text}</p>}
+              
+              {/* Reaction button - only visible on hover */}
+              <div className={`absolute ${message.senderId === authUser._id ? "left-0 -translate-x-full" : "right-0 translate-x-full"} top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity`}>
+                <ReactionPicker 
+                  onSelectEmoji={(emoji) => handleAddReaction(message._id, emoji)}
+                  isOpen={reactionMessage === message._id}
+                  setIsOpen={(isOpen) => isOpen ? setReactionMessage(message._id) : setReactionMessage(null)}
+                />
+              </div>
             </div>
+            
+            {/* Display reactions */}
+            {message.reactions && message.reactions.length > 0 && (
+              <div className={`chat-footer ${message.senderId === authUser._id ? "text-right" : "text-left"}`}>
+                <MessageReactions 
+                  reactions={message.reactions} 
+                  onRemoveReaction={() => handleRemoveReaction(message._id)} 
+                  authUserId={authUser._id}
+                />
+              </div>
+            )}
           </div>
         ))}
       </div>
