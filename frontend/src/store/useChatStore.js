@@ -166,6 +166,49 @@ export const useChatStore = create((set, get) => ({
       toast.error(error.response?.data?.error || "Failed to delete message");
     }
   },
+  
+  // Forward a message to selected users
+  forwardMessage: async (message, recipients) => {
+    try {
+      // Create base message data without message-specific IDs
+      const baseMessageData = {
+        text: message.text,
+        fileUrl: message.fileUrl,
+        fileType: message.fileType,
+        fileName: message.fileName,
+        isForwarded: true,
+        originalSenderId: message.senderId
+      };
+      
+      // Send message to each recipient
+      const promises = recipients.map(recipient => 
+        axiosInstance.post(`/messages/forward/${recipient._id}`, baseMessageData)
+      );
+      
+      const results = await Promise.all(promises);
+      
+      // If current selected user is one of the recipients, add message to the current chat
+      const selectedUser = get().selectedUser;
+      if (selectedUser && recipients.some(r => r._id === selectedUser._id)) {
+        const newMessageForCurrentChat = results.find(
+          msg => msg.data.receiverId === selectedUser._id
+        );
+        
+        if (newMessageForCurrentChat) {
+          set(state => ({
+            messages: [...state.messages, newMessageForCurrentChat.data]
+          }));
+        }
+      }
+      
+      toast.success(`Message forwarded to ${recipients.length} user(s)`);
+      return results.map(res => res.data);
+    } catch (error) {
+      console.error("Error forwarding message:", error);
+      toast.error(error.response?.data?.error || "Failed to forward message");
+      throw error;
+    }
+  },
 
   subscribeToMessages: () => {
     const { selectedUser } = get();

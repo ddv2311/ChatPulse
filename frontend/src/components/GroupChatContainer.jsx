@@ -5,15 +5,14 @@ import { Send, Image as ImageIcon, Loader, Users, ArrowDownCircle, ArrowUpCircle
 import GroupMessage from "./GroupMessage";
 import GroupInfoModal from "./modals/GroupInfoModal";
 import GroupChatHeader from "./GroupChatHeader";
+import ForwardMessageModal from "./ForwardMessageModal";
 import toast from "react-hot-toast";
 
 const GroupChatContainer = () => {
   const [message, setMessage] = useState("");
   const [file, setFile] = useState(null);
   const [fileType, setFileType] = useState(null);
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+    const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);  const [isSubmitting, setIsSubmitting] = useState(false);  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);  const [forwardMessage, setForwardMessage] = useState(null);  const [isForwardModalOpen, setIsForwardModalOpen] = useState(false);
 
   const {
     selectedGroup,
@@ -296,11 +295,7 @@ const GroupChatContainer = () => {
                     isSearchResult ? "opacity-100" : searchQuery ? "opacity-70" : "opacity-100"
                   } ${isCurrentResult ? "ring-2 ring-warning ring-offset-2 rounded-lg" : ""}`}
                 >
-                  <GroupMessage
-                    message={msg}
-                    isOwnMessage={isOwnMessage}
-                    highlightText={highlightSearchText}
-                  />
+                                    <GroupMessage                    message={msg}                    isOwnMessage={isOwnMessage}                    highlightText={highlightSearchText}                    onForward={(message) => {                      setForwardMessage(message);                      setIsForwardModalOpen(true);                    }}                  />
                 </div>
               );
             })}
@@ -411,6 +406,16 @@ const GroupChatContainer = () => {
         isOpen={isInfoModalOpen}
         onClose={() => setIsInfoModalOpen(false)}
         group={selectedGroup}
+      />
+      
+      {/* Forward Message Modal */}
+      <ForwardMessageModal 
+        message={forwardMessage}
+        isOpen={isForwardModalOpen}
+        onClose={() => {
+          setIsForwardModalOpen(false);
+          setForwardMessage(null);
+        }}
       />
     </div>
   );

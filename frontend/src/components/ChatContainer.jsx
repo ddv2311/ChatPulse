@@ -1,15 +1,4 @@
-import { useChatStore } from "../store/useChatStore";
-import { useEffect, useRef, useState } from "react";
-
-import ChatHeader from "./ChatHeader";
-import MessageInput from "./MessageInput";
-import MessageSkeleton from "./skeletons/MessageSkeleton";
-import { useAuthStore } from "../store/useAuthStore";
-import { formatMessageTime, handleFile } from "../lib/utils";
-import { ArrowDownCircle, ArrowUpCircle, Check, CheckCheck, Clock, Pencil, FileText, Film, Music, Download } from "lucide-react";
-import ReactionPicker from "./ReactionPicker";
-import MessageReactions from "./MessageReactions";
-import MessageActions from "./MessageActions";
+import { useChatStore } from "../store/useChatStore";import { useEffect, useRef, useState } from "react";import ChatHeader from "./ChatHeader";import MessageInput from "./MessageInput";import MessageSkeleton from "./skeletons/MessageSkeleton";import { useAuthStore } from "../store/useAuthStore";import { formatMessageTime, handleFile } from "../lib/utils";import { ArrowDownCircle, ArrowUpCircle, Check, CheckCheck, Clock, Pencil, FileText, Film, Music, Download, Forward } from "lucide-react";import ReactionPicker from "./ReactionPicker";import MessageReactions from "./MessageReactions";import MessageActions from "./MessageActions";import ForwardMessageModal from "./ForwardMessageModal";
 
 const ChatContainer = () => {
   const {
@@ -27,12 +16,7 @@ const ChatContainer = () => {
     searchResults,
     clearSearch
   } = useChatStore();
-  const { authUser } = useAuthStore();
-  const messageEndRef = useRef(null);
-  const [reactionMessage, setReactionMessage] = useState(null);
-  const [editingMessage, setEditingMessage] = useState(null);
-  const [editText, setEditText] = useState("");
-  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+    const { authUser } = useAuthStore();  const messageEndRef = useRef(null);  const [reactionMessage, setReactionMessage] = useState(null);  const [editingMessage, setEditingMessage] = useState(null);  const [editText, setEditText] = useState("");  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);  const [forwardMessage, setForwardMessage] = useState(null);  const [isForwardModalOpen, setIsForwardModalOpen] = useState(false);
   
   // Refs for search result navigation
   const searchResultRefs = useRef({});
@@ -368,16 +352,18 @@ const ChatContainer = () => {
                   
                   {message.text && <p>{highlightSearchText(message.text)}</p>}
                   
-                  {/* Message actions (edit, delete) - only for own messages */}
-                  {message.senderId === authUser._id && (
-                    <div className="absolute top-0 right-0 -mt-1 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <MessageActions 
-                        isVisible={true}
-                        onEdit={() => handleEditMessage(message)}
-                        onDelete={() => handleDeleteMessage(message._id)}
-                      />
-                    </div>
-                  )}
+                  {/* Message actions - edit/delete/forward for own messages, only forward for others */}
+                  <div className="absolute top-0 right-0 -mt-1 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <MessageActions 
+                      isVisible={true}
+                      onEdit={message.senderId === authUser._id ? () => handleEditMessage(message) : undefined}
+                      onDelete={message.senderId === authUser._id ? () => handleDeleteMessage(message._id) : undefined}
+                      onForward={() => {
+                        setForwardMessage(message);
+                        setIsForwardModalOpen(true);
+                      }}
+                    />
+                  </div>
                   
                   {/* Reaction button - only visible on hover */}
                   <div className={`absolute ${message.senderId === authUser._id ? "left-0 -translate-x-full" : "right-0 translate-x-full"} top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity`}>
@@ -406,6 +392,16 @@ const ChatContainer = () => {
       </div>
 
       <MessageInput />
+      
+      {/* Forward Message Modal */}
+      <ForwardMessageModal 
+        message={forwardMessage}
+        isOpen={isForwardModalOpen}
+        onClose={() => {
+          setIsForwardModalOpen(false);
+          setForwardMessage(null);
+        }}
+      />
     </div>
   );
 };

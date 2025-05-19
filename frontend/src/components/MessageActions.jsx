@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { MoreHorizontal, Edit, Trash, X } from "lucide-react";
+import { MoreHorizontal, Edit, Trash, Forward } from "lucide-react";
 
-const MessageActions = ({ onEdit, onDelete, isVisible }) => {
+const MessageActions = ({ onEdit, onDelete, onForward, isVisible }) => {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
   
@@ -39,26 +39,42 @@ const MessageActions = ({ onEdit, onDelete, isVisible }) => {
           className="absolute top-0 right-full mr-2 bg-base-200 rounded-lg shadow-lg p-1 z-10"
         >
           <div className="flex flex-col gap-1 min-w-[120px]">
-            <button
-              onClick={() => {
-                onEdit();
-                setShowMenu(false);
-              }}
-              className="flex items-center gap-2 px-3 py-2 hover:bg-base-300 rounded-md transition-colors text-left"
-            >
-              <Edit className="size-4" />
-              <span>Edit</span>
-            </button>
-            <button
-              onClick={() => {
-                onDelete();
-                setShowMenu(false);
-              }}
-              className="flex items-center gap-2 px-3 py-2 hover:bg-base-300 rounded-md transition-colors text-left text-error"
-            >
-              <Trash className="size-4" />
-              <span>Delete</span>
-            </button>
+            {onForward && (
+              <button
+                onClick={() => {
+                  onForward();
+                  setShowMenu(false);
+                }}
+                className="flex items-center gap-2 px-3 py-2 hover:bg-base-300 rounded-md transition-colors text-left"
+              >
+                <Forward className="size-4" />
+                <span>Forward</span>
+              </button>
+            )}
+            {onEdit && (
+              <button
+                onClick={() => {
+                  onEdit();
+                  setShowMenu(false);
+                }}
+                className="flex items-center gap-2 px-3 py-2 hover:bg-base-300 rounded-md transition-colors text-left"
+              >
+                <Edit className="size-4" />
+                <span>Edit</span>
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => {
+                  onDelete();
+                  setShowMenu(false);
+                }}
+                className="flex items-center gap-2 px-3 py-2 hover:bg-base-300 rounded-md transition-colors text-left text-error"
+              >
+                <Trash className="size-4" />
+                <span>Delete</span>
+              </button>
+            )}
           </div>
         </div>
       )}

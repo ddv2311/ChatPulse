@@ -420,3 +420,61 @@ export const deleteMessage = async (req, res) => {
   }
 };
 
+// Forward a message to another user
+export const forwardMessage = async (req, res) => {
+  try {
+    const { id: receiverId } = req.params;
+    const { text, fileUrl, fileType, fileName, isForwarded, originalSenderId } = req.body;
+    const senderId = req.user._id;
+    
+    // Check if user is trying to send a message to a user who blocked them
+    const receiver = await User.findById(receiverId);
+    if (!receiver) {
+      return res.status(404).json({ error: "Receiver not found" });
+    }
+    
+    if (receiver.blockedUsers && receiver.blockedUsers.includes(senderId)) {
+      return res.status(403).json({ error: "You cannot send messages to users who have blocked you" });
+    }
+
+    const newMessage = new Message({
+      senderId,
+      receiverId,
+      text,
+      fileUrl,
+      fileType,
+      fileName,
+      isForwarded: true,
+      originalSenderId: originalSenderId || null,
+      status: "sent"
+    });
+
+    await newMessage.save();
+
+    // Get the receiver's socket ID and emit only to them
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      // Only emit to the specific receiver
+      io.to(receiverSocketId).emit("newMessage", newMessage);
+      
+      // Update status to delivered since we know the receiver is online
+      newMessage.status = "delivered";
+      await Message.findByIdAndUpdate(newMessage._id, { status: "delivered" });
+      
+      // Notify the sender that the message was delivered
+      const senderSocketId = getReceiverSocketId(senderId);
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("messageStatusUpdate", {
+          messageId: newMessage._id,
+          status: "delivered"
+        });
+      }
+    }
+
+    res.status(201).json(newMessage);
+  } catch (error) {
+    console.log("Error in forwardMessage controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+

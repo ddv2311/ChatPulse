@@ -33,6 +33,14 @@ const groupMessageSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    isForwarded: {
+        type: Boolean,
+        default: false
+    },
+    originalSenderId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+    },
     readBy: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "User"
