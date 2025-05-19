@@ -14,6 +14,12 @@ ChatPulse is a full-stack real-time chat application featuring a **React 19 + Ta
 * 🗺️ **Client-side Routing** using React Router
 * 🔒 **Password Hashing** using Bcrypt
 * 🌍 **MongoDB Integration** with Mongoose
+* 🔄 **Message Forwarding** to users and groups
+* 📊 **Read Status Tracking** with visual indicators
+* 🔔 **Real-time Delivery Notifications**
+* 📞 **Voice & Video Calling** via WebRTC and SimplePeer
+* 🔒 **End-to-End Encryption** for secure messaging
+* 🔔 **Push Notifications** for new messages and calls
 
 ---
 
@@ -27,6 +33,7 @@ ChatPulse is a full-stack real-time chat application featuring a **React 19 + Ta
 * [Socket.io Client](https://socket.io/)
 * [Zustand](https://zustand-demo.pmnd.rs/)
 * [React Router](https://reactrouter.com/)
+* [SimplePeer](https://github.com/feross/simple-peer) for WebRTC
 
 ### ⚙️ Backend
 
@@ -54,8 +61,16 @@ ChatPulse/
 │   ├── src/
 │   │   ├── assets/       # Images, logos, etc.
 │   │   ├── components/   # Reusable UI components
+│   │   │   ├── GroupMessage.jsx    # Group chat message component
+│   │   │   ├── DirectMessage.jsx   # Direct message component
+│   │   │   ├── ForwardMessageModal.jsx # Message forwarding interface
+│   │   │   └── ...
 │   │   ├── pages/        # Auth and chat views
 │   │   ├── store/        # Zustand state management
+│   │   │   ├── useAuthStore.js     # Authentication state management
+│   │   │   ├── useChatStore.js     # Direct messaging state management
+│   │   │   ├── useGroupStore.js    # Group chat state management
+│   │   │   └── ...
 │   │   ├── App.jsx       # Root component
 │   │   └── main.jsx      # Entry point for Vite
 │
@@ -92,6 +107,56 @@ This command starts **both frontend and backend** concurrently.
 ```bash
 npm run dev
 ```
+
+---
+
+## 📑 Key Features Explained
+
+### 🔄 Message Forwarding
+
+ChatPulse allows users to forward messages between direct chats and group conversations:
+
+- **Forwarding Interface**: Access the forward option from the message action menu
+- **Tabbed Selection**: Choose between forwarding to individual users or groups
+- **Original Source Tracking**: Forwarded messages show the original sender with a visual indicator
+- **Media Support**: Forward all types of content including text, images, videos, and documents
+
+### 📊 Read Status Tracking
+
+Messages include detailed read status information:
+
+- **Visual Indicators**: See how many users have read your messages
+- **Detailed List**: Click on the indicator to see exactly who has read your message
+- **Timestamp Integration**: Read status appears alongside message timestamps for clean UI
+- **Forwarded Message Awareness**: Special handling for read status in forwarded messages
+
+### 📞 Voice & Video Calling
+
+ChatPulse features real-time communication capabilities:
+
+- **WebRTC Integration**: Peer-to-peer connection for low-latency calls
+- **SimplePeer Library**: Easy-to-use WebRTC implementation
+- **One-Click Calling**: Initiate calls directly from chat interfaces
+- **Audio/Video Toggle**: Control media streams during calls
+- **Call Status Updates**: Real-time updates for call events (ringing, accepted, ended)
+
+### 🔔 Notifications
+
+Stay updated with important events:
+
+- **Push Notifications**: Get alerted about new messages even when app is in background
+- **Call Alerts**: Receive notifications for incoming calls
+- **Custom Sounds**: Different notification sounds for messages vs. calls
+- **Notification Preferences**: Control which notifications you receive
+
+### 🔒 End-to-End Encryption
+
+Secure communication for peace of mind:
+
+- **Message Encryption**: All messages are encrypted end-to-end
+- **Key Exchange**: Secure key exchange protocol between users
+- **Private Conversations**: No one, not even server admins, can read your messages
+- **Visual Security Indicators**: See when conversations are secured
 
 ---
 
@@ -136,12 +201,15 @@ You can try the live version of ChatPulse here:
 ## 📌 Roadmap & Upcoming Features
 
 * ✅ Chat Rooms & Private Messaging
-* ⏳ Notifications (in-app or push)
+* ✅ Message Forwarding
+* ✅ Read Status Tracking
+* ✅ Voice & Video Calling
+* ✅ Push Notifications
+* ✅ End-to-End Encryption
 * ⏳ Mobile Optimization / PWA Support
+* ⏳ Screen Sharing
 
 ---
-
-
 
 ## 📝 License
 
@@ -152,7 +220,7 @@ Feel free to fork, contribute, and adapt!
 
 ## 🤝 Contributing
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you’d like to change.
+Pull requests are welcome. For major changes, please open an issue first to discuss what you'd like to change.
 
 ---
 
