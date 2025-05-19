@@ -63,89 +63,7 @@ export const getMessages = async (req, res) => {
   }
 };
 
-export const sendMessage = async (req, res) => {
-  try {
-    const { text, file, fileType, fileName } = req.body;
-    const { id: receiverId } = req.params;
-    const senderId = req.user._id;
-
-    let fileUrl;
-    if (file) {
-      try {
-        // Determine if this is a PDF/document or other file type
-        const isPDF = file.includes("application/pdf") || 
-                     file.includes("application/msword") || 
-                     file.includes("application/vnd.openxmlformats");
-        
-        // Create a URL-safe filename with timestamp to ensure uniqueness
-        const timestamp = Date.now();
-        const safeFileName = fileName ? 
-                            `${timestamp}_${fileName.replace(/[^a-zA-Z0-9.]/g, '_')}` : 
-                            `file_${timestamp}`;
-        
-        let uploadOptions;
-        
-        if (isPDF) {
-          // For PDFs and documents, use proper resource type for each
-          if (file.includes("application/pdf")) {
-            // For PDFs, use raw upload which works best
-            uploadOptions = {
-              timeout: 180000,
-              public_id: safeFileName.replace(/\.pdf$/i, ''), // Remove .pdf extension if present
-              resource_type: "raw", // Raw works better for PDFs
-              access_mode: "public",
-              type: "upload",
-              folder: 'documents',
-              use_filename: true,
-              unique_filename: false
-            };
-          } else {
-            // For other document types (Word, Excel, etc.)
-            uploadOptions = {
-              timeout: 180000,
-              public_id: safeFileName,
-              resource_type: "raw",
-              access_mode: "public",
-              type: "upload",
-              folder: 'documents',
-              use_filename: true,
-              unique_filename: false
-            };
-          }
-        } else {
-          // For other files (images, videos, audio)
-          uploadOptions = {
-            timeout: 180000,
-            public_id: safeFileName,
-            resource_type: "auto",
-            access_mode: "public",
-            type: "upload",
-            folder: 'media',
-            use_filename: true,
-            unique_filename: false,
-            eager: [{ quality: "auto:good" }]
-          };
-        }
-        
-        const uploadResponse = await cloudinary.uploader.upload(file, uploadOptions);
-        fileUrl = uploadResponse.secure_url;
-        
-        console.log(`File uploaded successfully: ${fileUrl}`);
-      } catch (error) {
-        console.error("Cloudinary upload error:", error);
-        return res.status(500).json({ error: "File upload failed. The file may be too large or in an unsupported format." });
-      }
-    }
-
-    const newMessage = new Message({
-      senderId,
-      receiverId,
-      text,
-      fileUrl,
-      fileType,
-      fileName,
-      status: "sent"
-    });
+export const sendMessage = async (req, res) => {  try {    const { text, file, fileType } = req.body;    const { id: receiverId } = req.params;    const senderId = req.user._id;    let fileUrl;    if (file) {      // Upload base64 file to cloudinary      const uploadResponse = await cloudinary.uploader.upload(file, {        resource_type: "auto" // Allow Cloudinary to determine resource type automatically      });      fileUrl = uploadResponse.secure_url;    }    const newMessage = new Message({      senderId,      receiverId,      text,      fileUrl,      fileType,      status: "sent"    });
 
     await newMessage.save();
 
@@ -419,4 +337,3 @@ export const deleteMessage = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-

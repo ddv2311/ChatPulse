@@ -8,7 +8,7 @@ import {
   addMessageReaction, 
   removeMessageReaction,
   editMessage,
-  deleteMessage 
+  deleteMessage
 } from "../controllers/messageController.js";
 
 const router = express.Router();

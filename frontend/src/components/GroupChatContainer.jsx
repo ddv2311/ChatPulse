@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { useGroupStore } from "../store/useGroupStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { Send, Image as ImageIcon, Loader, Users, ArrowDownCircle, ArrowUpCircle, X } from "lucide-react";
+import { Send, Image as ImageIcon, Loader, Users, ArrowDownCircle, ArrowUpCircle, X, Plus, FileText, Film, Music } from "lucide-react";
 import GroupMessage from "./GroupMessage";
 import GroupInfoModal from "./modals/GroupInfoModal";
 import GroupChatHeader from "./GroupChatHeader";
+import toast from "react-hot-toast";
 
 const GroupChatContainer = () => {
   const [message, setMessage] = useState("");
-  const [image, setImage] = useState(null);
+  const [file, setFile] = useState(null);
+  const [fileType, setFileType] = useState(null);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
@@ -101,37 +103,123 @@ const GroupChatContainer = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if ((!message.trim() && !image) || isSubmitting) return;
+    if ((!message.trim() && !file) || isSubmitting) return;
 
     setIsSubmitting(true);
 
-    // Convert image to base64 if present
-    let imageBase64 = "";
-    if (image) {
-      const reader = new FileReader();
-      reader.readAsDataURL(image);
-      await new Promise((resolve) => {
-        reader.onload = () => {
-          imageBase64 = reader.result;
-          resolve();
-        };
-      });
+    // Check file size
+    if (file && file.size > 10 * 1024 * 1024) { // If larger than 10MB
+      toast.error("File is too large. Please select a file smaller than 10MB.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Convert file to base64 if present
+    let fileBase64 = "";
+    if (file) {
+      try {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        await new Promise((resolve) => {
+          reader.onload = () => {
+            fileBase64 = reader.result;
+            resolve();
+          };
+        });
+      } catch (error) {
+        console.error("Error reading file:", error);
+        toast.error("Error processing file. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
     }
 
     await sendGroupMessage({
       text: message.trim(),
-      image: imageBase64,
+      file: fileBase64,
+      fileType: fileType,
+      fileName: file ? file.name : null
     });
 
     setMessage("");
-    setImage(null);
+    setFile(null);
+    setFileType(null);
     setIsSubmitting(false);
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type.startsWith("image/")) {
-      setImage(file);
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+    
+    // Check file size - 10MB limit
+    const maxSizeInBytes = 10 * 1024 * 1024; // 10MB
+    if (selectedFile.size > maxSizeInBytes) {
+      toast.error(`File is too large. Maximum size is 10MB.`);
+      e.target.value = null; // Clear the input
+      return;
+    }
+
+    // Determine file type based on MIME type
+    let type;
+    if (selectedFile.type.startsWith("image/")) {
+      type = "image";
+    } else if (selectedFile.type.startsWith("video/")) {
+      type = "video";
+    } else if (selectedFile.type.startsWith("audio/")) {
+      type = "audio";
+    } else if (selectedFile.type.includes("pdf") || selectedFile.type.includes("document") || 
+               selectedFile.type.includes("sheet") || selectedFile.type.includes("text")) {
+      type = "document";
+      
+      // Special handling for PDFs
+      if (selectedFile.type.includes("pdf") && selectedFile.size > 5 * 1024 * 1024) {
+        toast.warning("Large PDF files may take longer to upload. Please be patient.");
+      }
+    } else {
+      toast.error("Unsupported file type");
+      e.target.value = null; // Clear the input
+      return;
+    }
+
+    setFileType(type);
+    setFile(selectedFile);
+  };
+
+  const renderFilePreview = () => {
+    if (!file) return null;
+
+    switch (fileType) {
+      case "image":
+        return (
+          <img
+            src={URL.createObjectURL(file)}
+            alt="Selected"
+            className="h-20 rounded-md object-cover"
+          />
+        );
+      case "video":
+        return (
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-base-300 border border-zinc-700">
+            <Film className="size-5 text-accent" />
+            <span className="text-xs truncate max-w-32">{file.name}</span>
+          </div>
+        );
+      case "audio":
+        return (
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-base-300 border border-zinc-700">
+            <Music className="size-5 text-accent" />
+            <span className="text-xs truncate max-w-32">{file.name}</span>
+          </div>
+        );
+      case "document":
+        return (
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-base-300 border border-zinc-700">
+            <FileText className="size-5 text-accent" />
+            <span className="text-xs truncate max-w-32">{file.name}</span>
+          </div>
+        );
+      default:
+        return null;
     }
   };
 
@@ -228,16 +316,12 @@ const GroupChatContainer = () => {
 
       {/* Message Input */}
       <form onSubmit={handleSubmit} className="p-4 border-t border-base-300">
-        {image && (
+        {file && (
           <div className="mb-2 relative inline-block">
-            <img
-              src={URL.createObjectURL(image)}
-              alt="Selected"
-              className="h-20 rounded-md object-cover"
-            />
+            {renderFilePreview()}
             <button
               type="button"
-              onClick={() => setImage(null)}
+              onClick={() => { setFile(null); setFileType(null); }}
               className="absolute -top-2 -right-2 bg-base-100 rounded-full p-1"
             >
               <X className="size-4" />
@@ -245,15 +329,61 @@ const GroupChatContainer = () => {
           </div>
         )}
         <div className="flex gap-2">
-          <label className="btn btn-circle btn-sm">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              className="hidden"
-            />
-            <ImageIcon className="size-5" />
-          </label>
+          <div className="dropdown dropdown-top">
+            <label tabIndex={0} className="btn btn-circle btn-sm">
+              <Plus className="size-5" />
+            </label>
+            <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-200 rounded-box w-52">
+              <li>
+                <label className="flex items-center gap-2">
+                  <ImageIcon size={16} />
+                  <span>Image</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </label>
+              </li>
+              <li>
+                <label className="flex items-center gap-2">
+                  <Film size={16} />
+                  <span>Video</span>
+                  <input
+                    type="file"
+                    accept="video/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </label>
+              </li>
+              <li>
+                <label className="flex items-center gap-2">
+                  <Music size={16} />
+                  <span>Audio</span>
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </label>
+              </li>
+              <li>
+                <label className="flex items-center gap-2">
+                  <FileText size={16} />
+                  <span>Document</span>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </label>
+              </li>
+            </ul>
+          </div>
           <input
             type="text"
             value={message}
@@ -265,7 +395,7 @@ const GroupChatContainer = () => {
           <button
             type="submit"
             className="btn btn-primary btn-circle"
-            disabled={(!message.trim() && !image) || isSubmitting}
+            disabled={(!message.trim() && !file) || isSubmitting}
           >
             {isSubmitting ? (
               <Loader className="size-5 animate-spin" />

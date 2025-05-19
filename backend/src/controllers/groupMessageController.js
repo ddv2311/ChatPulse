@@ -1,15 +1,16 @@
 import GroupMessage from "../models/groupMessages.js";
 import GroupChat from "../models/groupChat.js";
 import { io } from "../lib/socket.js";
+import { cloudinary } from "../lib/claudinary.js";
 
 // Send message to group
 export const sendGroupMessage = async (req, res) => {
     try {
         const { groupId } = req.params;
-        const { text, image } = req.body;
+        const { text, file, fileType, fileName } = req.body;
         const userId = req.user._id;
         
-        if (!text && !image) {
+        if (!text && !file) {
             return res.status(400).json({ error: "Message cannot be empty" });
         }
         
@@ -24,11 +25,81 @@ export const sendGroupMessage = async (req, res) => {
             return res.status(403).json({ error: "You are not a member of this group" });
         }
         
+        let fileUrl;
+        if (file) {
+            try {
+                // Determine if this is a PDF/document or other file type
+                const isPDF = file.includes("application/pdf") || 
+                    file.includes("application/msword") || 
+                    file.includes("application/vnd.openxmlformats");
+                
+                // Create a URL-safe filename with timestamp to ensure uniqueness
+                const timestamp = Date.now();
+                const safeFileName = fileName ? 
+                                   `${timestamp}_${fileName.replace(/[^a-zA-Z0-9.]/g, '_')}` : 
+                                   `group_file_${timestamp}`;
+                
+                let uploadOptions;
+                
+                if (isPDF) {
+                    // For PDFs and documents, use proper resource type for each
+                    if (file.includes("application/pdf")) {
+                        // For PDFs, use raw upload which works best
+                        uploadOptions = {
+                            timeout: 180000,
+                            public_id: safeFileName.replace(/\.pdf$/i, ''), // Remove .pdf extension if present
+                            resource_type: "raw", // Raw works better for PDFs
+                            access_mode: "public",
+                            type: "upload",
+                            folder: 'group_documents',
+                            use_filename: true,
+                            unique_filename: false
+                        };
+                    } else {
+                        // For other document types (Word, Excel, etc.)
+                        uploadOptions = {
+                            timeout: 180000,
+                            public_id: safeFileName,
+                            resource_type: "raw",
+                            access_mode: "public",
+                            type: "upload",
+                            folder: 'group_documents',
+                            use_filename: true,
+                            unique_filename: false
+                        };
+                    }
+                } else {
+                    // For other files (images, videos, audio)
+                    uploadOptions = {
+                        timeout: 180000,
+                        public_id: safeFileName,
+                        resource_type: "auto",
+                        access_mode: "public",
+                        type: "upload",
+                        folder: 'group_media',
+                        use_filename: true,
+                        unique_filename: false,
+                        eager: [{ quality: "auto:good" }]
+                    };
+                }
+                
+                const uploadResponse = await cloudinary.uploader.upload(file, uploadOptions);
+                fileUrl = uploadResponse.secure_url;
+                
+                console.log(`Group file uploaded successfully: ${fileUrl}`);
+            } catch (error) {
+                console.error("Cloudinary upload error:", error);
+                return res.status(500).json({ error: "File upload failed. The file may be too large or in an unsupported format." });
+            }
+        }
+        
         const newMessage = new GroupMessage({
             groupId,
             senderId: userId,
             text: text || "",
-            image: image || "",
+            fileUrl,
+            fileType,
+            fileName,
             status: "sent",
             readBy: [userId] // The sender has already "read" the message
         });
