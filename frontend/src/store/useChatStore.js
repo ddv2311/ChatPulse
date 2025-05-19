@@ -1,7 +1,4 @@
-import { create } from "zustand";
-import toast from "react-hot-toast";
-import { axiosInstance } from "../lib/axios";
-import { useAuthStore } from "./useAuthStore";
+import { create } from "zustand";import toast from "react-hot-toast";import { axiosInstance } from "../lib/axios";import { useAuthStore } from "./useAuthStore";import notificationService from "../lib/notificationService";
 
 export const useChatStore = create((set, get) => ({
   messages: [],
@@ -210,6 +207,14 @@ export const useChatStore = create((set, get) => ({
               messageId: message._id,
               senderId: message.senderId
             });
+          }
+          
+          // Show notifications for all incoming messages that aren't from the current user
+          const authUser = useAuthStore.getState().authUser;
+          if (message.senderId !== authUser._id) {
+            // Find sender info from users list
+            const sender = get().users.find(u => u._id === message.senderId) || selectedUser;
+            notificationService.showMessageNotification(message, sender);
           }
         }
       }

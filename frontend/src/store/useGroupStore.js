@@ -1,7 +1,4 @@
-import { create } from "zustand";
-import toast from "react-hot-toast";
-import { axiosInstance } from "../lib/axios";
-import { useAuthStore } from "./useAuthStore";
+import { create } from "zustand";import toast from "react-hot-toast";import { axiosInstance } from "../lib/axios";import { useAuthStore } from "./useAuthStore";import notificationService from "../lib/notificationService";
 
 export const useGroupStore = create((set, get) => ({
   groups: [],
@@ -274,6 +271,9 @@ export const useGroupStore = create((set, get) => ({
             axiosInstance.put(`/groups/messages/${message._id}/read`).catch(err => {
               console.error("Error marking message as read:", err);
             });
+
+            // Show browser notification for the new message
+            notificationService.showGroupMessageNotification(message, selectedGroup);
           }
         }
       }

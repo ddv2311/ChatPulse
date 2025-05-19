@@ -3,6 +3,7 @@ import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 import { useCallStore } from "./useCallStore";
+import notificationService from "../lib/notificationService";
 
 const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
 
@@ -101,6 +102,26 @@ export const useAuthStore = create((set, get) => ({
       set({ onlineUsers: userIds });
     });
     
+    // Add a global message listener for notifications
+    socket.on("newMessage", (message) => {
+      // Only show notifications for messages sent to the current user
+      // that aren't from the current user
+      if (message.receiverId === authUser._id && message.senderId !== authUser._id) {
+        // Try to fetch user information
+        axiosInstance.get(`/users/${message.senderId}`)
+          .then(res => {
+            const sender = res.data;
+            // Show notification
+            notificationService.showMessageNotification(message, sender);
+          })
+          .catch(err => {
+            // Use basic info if user fetch fails
+            const basicSender = { fullName: "New message", profilePicture: null };
+            notificationService.showMessageNotification(message, basicSender);
+          });
+      }
+    });
+    
     // WebRTC signaling events
     socket.on("incomingCall", (data) => {
       const callStore = useCallStore.getState();
@@ -112,7 +133,10 @@ export const useAuthStore = create((set, get) => ({
       callStore.handleCallAccepted(data);
     });
     
-        socket.on("receiveSignal", (data) => {      const callStore = useCallStore.getState();      callStore.handleReceiveSignal(data);    });
+    socket.on("receiveSignal", (data) => {
+      const callStore = useCallStore.getState();
+      callStore.handleReceiveSignal(data);
+    });
     
     socket.on("callRejected", () => {
       const callStore = useCallStore.getState();

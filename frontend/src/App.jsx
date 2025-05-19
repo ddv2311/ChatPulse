@@ -14,6 +14,7 @@ import { Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import CallUI from './components/CallUI'
 import IncomingCallNotification from './components/IncomingCallNotification'
+import notificationService from './lib/notificationService'
 
 const App = () => {
   const {authUser,checkAuth,isCheckingAuth} = useAuthStore();
@@ -22,6 +23,13 @@ const App = () => {
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+  
+  // Request notification permission when the user logs in
+  useEffect(() => {
+    if (authUser) {
+      notificationService.requestPermission();
+    }
+  }, [authUser]);
   
   // Apply theme to document element
   useEffect(() => {

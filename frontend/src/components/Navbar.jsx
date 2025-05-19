@@ -1,9 +1,24 @@
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
-import { LogOut, MessageSquare, Settings, User } from "lucide-react";
+import { LogOut, MessageSquare, Settings, User, Bell } from "lucide-react";
+import { useState, useEffect } from "react";
+import notificationService from "../lib/notificationService";
 
 const Navbar = () => {
   const { logout, authUser } = useAuthStore();
+  const [notificationPermission, setNotificationPermission] = useState(null);
+
+  // Check notification permission status on component mount
+  useEffect(() => {
+    if (authUser && "Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, [authUser]);
+
+  const requestPermission = async () => {
+    const granted = await notificationService.requestPermission();
+    setNotificationPermission(granted ? "granted" : "denied");
+  };
 
   return (
     <header
@@ -22,6 +37,17 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {authUser && notificationPermission === "default" && (
+              <button 
+                onClick={requestPermission}
+                className="btn btn-sm btn-primary gap-2"
+                title="Enable notifications"
+              >
+                <Bell className="w-4 h-4" />
+                <span className="hidden sm:inline">Enable Notifications</span>
+              </button>
+            )}
+
             <Link
               to={"/settings"}
               className={`
